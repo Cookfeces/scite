@@ -133,7 +133,7 @@ LEXPROPS=\
 ../bin/flagship.properties ../bin/forth.properties ../bin/fortran.properties \
 ../bin/freebasic.properties ../bin/gap.properties ../bin/haskell.properties \
 ../bin/hex.properties ../bin/html.properties ../bin/inno.properties \
-../bin/json.properties ../bin/kix.properties ../bin/latex.properties \
+../bin/json.properties ../bin/cskyasm.properties ../bin/kix.properties ../bin/latex.properties \
 ../bin/lisp.properties ../bin/lot.properties ../bin/lout.properties \
 ../bin/lua.properties ../bin/matlab.properties ../bin/metapost.properties \
 ../bin/mmixal.properties ../bin/modula3.properties ../bin/nimrod.properties \

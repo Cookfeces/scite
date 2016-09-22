@@ -1139,6 +1139,22 @@ static IFaceConstant ifaceConstants[] = {
 	{"SCE_JSON_STRING",2},
 	{"SCE_JSON_STRINGEOL",3},
 	{"SCE_JSON_URI",9},
+	{"SCE_CSKY_CHARACTER",12},
+	{"SCE_CSKY_COMMENT",1},
+	{"SCE_CSKY_COMMENTBLOCK",11},
+	{"SCE_CSKY_PREPROCESSOR",15},
+	{"SCE_CSKY_CPUINSTRUCTION",6},
+	{"SCE_CSKY_DEFAULT",0},
+	{"SCE_CSKY_DIRECTIVE",9},
+	{"SCE_CSKY_DIRECTIVEOPERAND",10},
+	{"SCE_CSKY_EXTINSTRUCTION",14},
+	{"SCE_CSKY_IDENTIFIER",5},
+	{"SCE_CSKY_MATHINSTRUCTION",7},
+	{"SCE_CSKY_NUMBER",2},
+	{"SCE_CSKY_OPERATOR",4},
+	{"SCE_CSKY_REGISTER",8},
+	{"SCE_CSKY_STRING",3},
+	{"SCE_CSKY_STRINGEOL",13},
 	{"SCE_KIX_COMMENT",1},
 	{"SCE_KIX_COMMENTSTREAM",10},
 	{"SCE_KIX_DEFAULT",0},
@@ -2471,6 +2487,7 @@ static IFaceConstant ifaceConstants[] = {
 	{"SCLEX_IHEX",118},
 	{"SCLEX_INNOSETUP",76},
 	{"SCLEX_JSON",120},
+	{"SCLEX_CSKY",121},
 	{"SCLEX_KIX",57},
 	{"SCLEX_KVIRC",110},
 	{"SCLEX_LATEX",14},
@@ -3304,7 +3321,7 @@ static IFaceProperty ifaceProperties[] = {
 
 enum {
 	ifaceFunctionCount = 293,
-	ifaceConstantCount = 2644,
+	ifaceConstantCount = 2661,
 	ifacePropertyCount = 222
 };
 
