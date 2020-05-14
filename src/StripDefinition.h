@@ -5,6 +5,9 @@
 // Copyright 2012 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
+#ifndef STRIPDEFINITION_H
+#define STRIPDEFINITION_H
+
 class UserControl {
 public:
 	enum UCControlType { ucStatic, ucEdit, ucCombo, ucButton, ucDefaultButton } controlType;
@@ -14,7 +17,7 @@ public:
 	int widthDesired;
 	int widthAllocated;
 	GUI::Window w;
-	UserControl(UCControlType controlType_, GUI::gui_string text_, int item_) : 
+	UserControl(UCControlType controlType_, const GUI::gui_string &text_, int item_) :
 		controlType(controlType_),
 		text(text_),
 		item(item_),
@@ -28,7 +31,7 @@ struct ColumnWidth {
 	int widthDesired;
 	int widthAllocated;
 	bool isResizeable;
-	ColumnWidth() : widthDesired(0), widthAllocated(0), isResizeable(false) {
+	ColumnWidth() noexcept : widthDesired(0), widthAllocated(0), isResizeable(false) {
 	}
 };
 
@@ -64,27 +67,27 @@ public:
 			UserControl::UCControlType controlType = UserControl::ucStatic;
 			GUI::gui_char endChar = 0;
 			switch (*pdef) {
-				case '\'':
-					controlType = UserControl::ucStatic;
-					endChar = '\'';
-					break;
-				case '[':
-					controlType = UserControl::ucEdit;
-					endChar = ']';
-					break;
-				case '{':
-					controlType = UserControl::ucCombo;
-					endChar = '}';
-					break;
-				case '(':
-					if (pdef[1] == '(') {
-						controlType = UserControl::ucDefaultButton;
-						pdef++;
-					} else {
-						controlType = UserControl::ucButton;
-					}
-					endChar = ')';
-					break;
+			case '\'':
+				controlType = UserControl::ucStatic;
+				endChar = '\'';
+				break;
+			case '[':
+				controlType = UserControl::ucEdit;
+				endChar = ']';
+				break;
+			case '{':
+				controlType = UserControl::ucCombo;
+				endChar = '}';
+				break;
+			case '(':
+				if (pdef[1] == '(') {
+					controlType = UserControl::ucDefaultButton;
+					pdef++;
+				} else {
+					controlType = UserControl::ucButton;
+				}
+				endChar = ')';
+				break;
 			}
 			pdef++;
 			GUI::gui_string text;
@@ -113,9 +116,9 @@ public:
 			ColumnWidth cw;
 			for (size_t line=0; line<controls.size(); line++) {
 				if (column <  controls[line].size()) {
-					UserControl *ctl = &controls[line][column];
+					const UserControl *ctl = &controls[line][column];
 					if (ctl->fixedWidth) {
-						if  (cw.widthDesired < ctl->widthDesired)
+						if (cw.widthDesired < ctl->widthDesired)
 							cw.widthDesired = ctl->widthDesired;
 					} else {
 						cw.isResizeable = true;
@@ -127,8 +130,8 @@ public:
 			if (cw.isResizeable)
 				resizeables++;
 		}
-		int widthSpareEach = resizeables ? 
-			(widthToAllocate - widthOfNonResizeables) / resizeables : 0;
+		const int widthSpareEach = resizeables ?
+					   (widthToAllocate - widthOfNonResizeables) / resizeables : 0;
 		for (std::vector<ColumnWidth>::iterator cw=widths.begin(); cw != widths.end(); ++cw) {
 			if (cw->isResizeable) {
 				cw->widthAllocated = widthSpareEach + cw->widthDesired;
@@ -148,8 +151,10 @@ public:
 				controlID++;
 			}
 		}
-		return 0;
+		return nullptr;
 	}
 };
 
 enum StripCommand { scUnknown, scClicked, scChange, scFocusIn, scFocusOut };
+
+#endif

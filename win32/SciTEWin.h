@@ -5,22 +5,34 @@
 // Copyright 1998-2003 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
+#ifndef SCITEWIN_H
+#define SCITEWIN_H
+
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <stdarg.h>
-#include <sys/stat.h>
 
+#include <cstdint>
+
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <deque>
-#include <set>
 #include <map>
+#include <set>
 #include <algorithm>
+#include <memory>
+#include <chrono>
 #include <sstream>
 #include <iomanip>
+#include <atomic>
+#include <mutex>
+
+#include <fcntl.h>
+
+#include <sys/stat.h>
 
 #ifdef __MINGW_H
 #define _WIN32_IE	0x0400
@@ -36,53 +48,32 @@
 #define WINVER 0x0501
 #endif
 #include <windows.h>
+#include <commctrl.h>
+#include <richedit.h>
 #include <windowsx.h>
-#if defined(DISABLE_THEMES) || (defined(_MSC_VER) && (_MSC_VER <= 1200))
+#if defined(DISABLE_THEMES)
 // Old compilers do not have Uxtheme.h
 typedef void *HTHEME;
 #else
 #include <uxtheme.h>
-#endif
-#include <commctrl.h>
-#include <richedit.h>
-#include <shlwapi.h>
-
-#include <io.h>
-#include <process.h>
-#include <mmsystem.h>
-#include <commctrl.h>
-
-#if defined(DTBG_CLIPRECT) && !defined(DISABLE_THEMES)
+#include <vsstyle.h>
+#include <vssym32.h>
 #define THEME_AVAILABLE
 #endif
+#include <shlwapi.h>
+// need this header for SHBrowseForFolder
+#include <shlobj.h>
 
-// Since Vsstyle.h and Vssym32.h are not available from all compilers just define the used symbols
-#define CBS_NORMAL 1
-#define CBS_HOT 2
-#define CBS_PUSHED 3
-#define WP_SMALLCLOSEBUTTON 19
-#define TS_NORMAL 1
-#define TS_HOT 2
-#define TS_PRESSED 3
-#define TS_CHECKED 5
-#define TS_HOTCHECKED 6
-#define TP_BUTTON 1
-#ifndef DFCS_HOT
-#define DFCS_HOT 1000
-#endif
+#include "ILoader.h"
 
-#ifndef WM_UPDATEUISTATE
-#define WM_UPDATEUISTATE 0x0128
-#endif
-
-#ifndef WM_DPICHANGED
-#define WM_DPICHANGED 0x02E0
-#endif
+#include "ScintillaTypes.h"
+#include "ScintillaMessages.h"
+#include "ScintillaCall.h"
 
 #include "Scintilla.h"
-#include "ILexer.h"
 
 #include "GUI.h"
+#include "ScintillaWindow.h"
 
 #include "StringList.h"
 #include "StringHelpers.h"
@@ -92,26 +83,21 @@ typedef void *HTHEME;
 #include "StyleWriter.h"
 #include "Extender.h"
 #include "SciTE.h"
-#include "Mutex.h"
 #include "JobQueue.h"
 #include "Cookie.h"
 #include "Worker.h"
 #include "FileWorker.h"
 #include "MatchMarker.h"
 #include "SciTEBase.h"
-#include "SciTEKeys.h"
 #include "UniqueInstance.h"
 #include "StripDefinition.h"
 #include "Strips.h"
+#include "SciTEKeys.h"
 
-#if defined(__GNUC__)
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#endif
-
-const int SCITE_TRAY = WM_APP + 0;
-const int SCITE_DROP = WM_APP + 1;
-const int SCITE_WORKER = WM_APP + 2;
-const int SCITE_SHOWOUTPUT = WM_APP + 3;
+constexpr int SCITE_TRAY = WM_APP + 0;
+constexpr int SCITE_DROP = WM_APP + 1;
+constexpr int SCITE_WORKER = WM_APP + 2;
+constexpr int SCITE_SHOWOUTPUT = WM_APP + 3;
 
 enum {
 	WORK_EXECUTE = WORK_PLATFORM + 1
@@ -122,8 +108,8 @@ class SciTEWin;
 class CommandWorker : public Worker {
 public:
 	SciTEWin *pSciTE;
-	int icmd;
-	int originalEnd;
+	size_t icmd;
+	SA::Position originalEnd;
 	int exitStatus;
 	GUI::ElapsedTime commandTime;
 	std::string output;
@@ -131,9 +117,9 @@ public:
 	bool seenOutput;
 	int outputScroll;
 
-	CommandWorker();
-	void Initialise(bool resetToStart);
-	virtual void Execute();
+	CommandWorker() noexcept;
+	void Initialise(bool resetToStart) noexcept;
+	void Execute() override;
 };
 
 class Dialog;
@@ -142,13 +128,13 @@ class ContentWin : public BaseWin {
 	SciTEWin *pSciTEWin;
 	bool capturedMouse;
 public:
-	ContentWin() : pSciTEWin(0), capturedMouse(false) {
+	ContentWin() noexcept : pSciTEWin(nullptr), capturedMouse(false) {
 	}
-	void SetSciTE(SciTEWin *pSciTEWin_) {
+	void SetSciTE(SciTEWin *pSciTEWin_) noexcept {
 		pSciTEWin = pSciTEWin_;
 	}
 	void Paint(HDC hDC, GUI::Rectangle rcPaint);
-	LRESULT WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam);
+	LRESULT WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam) override;
 };
 
 struct Band {
@@ -156,7 +142,7 @@ struct Band {
 	int height;
 	bool expands;
 	GUI::Window win;
-	Band(bool visible_, int height_, bool expands_, GUI::Window win_) :
+	Band(bool visible_, int height_, bool expands_, GUI::Window win_) noexcept :
 		visible(visible_),
 		height(height_),
 		expands(expands_),
@@ -176,6 +162,7 @@ class SciTEWin : public SciTEBase {
 
 protected:
 
+	bool flatterUI;
 	int cmdShow;
 	static HINSTANCE hInstance;
 	static const TCHAR *className;
@@ -230,28 +217,28 @@ protected:
 	enum { bandTool, bandTab, bandContents, bandUser, bandBackground, bandSearch, bandFind, bandReplace, bandStatus };
 	std::vector<Band> bands;
 
-	virtual void ReadLocalization();
-	virtual void GetWindowPosition(int *left, int *top, int *width, int *height, int *maximize);
+	void ReadLocalization() override;
+	void GetWindowPosition(int *left, int *top, int *width, int *height, int *maximize) override;
 	void SetScaleFactor(int scale);
 
-	virtual void ReadEmbeddedProperties();
-	virtual void ReadPropertiesInitial();
-	virtual void ReadProperties();
+	void ReadEmbeddedProperties() override;
+	void ReadPropertiesInitial() override;
+	void ReadProperties() override;
 
-	virtual void TimerStart(int mask);
-	virtual void TimerEnd(int mask);
+	void TimerStart(int mask) override;
+	void TimerEnd(int mask) override;
 
-	virtual void ShowOutputOnMainThread();
-	virtual void SizeContentWindows();
-	virtual void SizeSubWindows();
+	void ShowOutputOnMainThread() override;
+	void SizeContentWindows() override;
+	void SizeSubWindows() override;
 
-	virtual void SetMenuItem(int menuNumber, int position, int itemID,
-	                         const GUI::gui_char *text, const GUI::gui_char *mnemonic = 0);
-	virtual void RedrawMenu();
-	virtual void DestroyMenuItem(int menuNumber, int itemID);
-	virtual void CheckAMenuItem(int wIDCheckItem, bool val);
-	virtual void EnableAMenuItem(int wIDCheckItem, bool val);
-	virtual void CheckMenus();
+	void SetMenuItem(int menuNumber, int position, int itemID,
+			 const GUI::gui_char *text, const GUI::gui_char *mnemonic = 0) override;
+	void RedrawMenu() override;
+	void DestroyMenuItem(int menuNumber, int itemID) override;
+	void CheckAMenuItem(int wIDCheckItem, bool val) override;
+	void EnableAMenuItem(int wIDCheckItem, bool val) override;
+	void CheckMenus() override;
 
 	void LocaliseMenu(HMENU hmenu);
 	void LocaliseMenus();
@@ -262,100 +249,102 @@ protected:
 	HWND CreateParameterisedDialog(LPCWSTR lpTemplateName, DLGPROC lpProc);
 	GUI::gui_string DialogFilterFromProperty(const GUI::gui_char *filterProperty);
 	void CheckCommonDialogError();
-	virtual bool OpenDialog(FilePath directory, const GUI::gui_char *filesFilter);
-	FilePath ChooseSaveName(FilePath directory, const char *title, const GUI::gui_char *filesFilter = 0, const char *ext = 0);
-	virtual bool SaveAsDialog();
-	virtual void SaveACopy();
-	virtual void SaveAsHTML();
-	virtual void SaveAsRTF();
-	virtual void SaveAsPDF();
-	virtual void SaveAsTEX();
-	virtual void SaveAsXML();
-	virtual void LoadSessionDialog();
-	virtual void SaveSessionDialog();
-	virtual bool PreOpenCheck(const GUI::gui_char *file);
-	virtual bool IsStdinBlocked();
+	bool OpenDialog(const FilePath &directory, const GUI::gui_char *filesFilter) override;
+	FilePath ChooseSaveName(const FilePath &directory, const char *title,
+				const GUI::gui_char *filesFilter = nullptr, const char *ext = nullptr);
+	bool SaveAsDialog() override;
+	void SaveACopy() override;
+	void SaveAsHTML() override;
+	void SaveAsRTF() override;
+	void SaveAsPDF() override;
+	void SaveAsTEX() override;
+	void SaveAsXML() override;
+	void LoadSessionDialog() override;
+	void SaveSessionDialog() override;
+	bool PreOpenCheck(const GUI::gui_char *arg) override;
+	bool IsStdinBlocked() override;
 
 	/// Print the current buffer.
-	virtual void Print(bool showDialog);
+	void Print(bool showDialog) override;
 	/// Handle default print setup values and ask the user its preferences.
-	virtual void PrintSetup();
+	void PrintSetup() override;
 
 	BOOL HandleReplaceCommand(int cmd, bool reverseDirection = false);
 
-	virtual MessageBoxChoice WindowMessageBox(GUI::Window &w, const GUI::gui_string &msg, MessageBoxStyle style = mbsIconWarning);
-	virtual void FindMessageBox(const std::string &msg, const std::string *findItem = 0);
-	virtual void AboutDialog();
+	MessageBoxChoice WindowMessageBox(GUI::Window &w, const GUI::gui_string &msg, MessageBoxStyle style = mbsIconWarning) override;
+	void FindMessageBox(const std::string &msg, const std::string *findItem = 0) override;
+	void AboutDialog() override;
 	void DropFiles(HDROP hdrop);
 	void MinimizeToTray();
 	void RestoreFromTray();
 	static GUI::gui_string ProcessArgs(const GUI::gui_char *cmdLine);
-	virtual void QuitProgram();
+	void QuitProgram() override;
 
-	virtual FilePath GetDefaultDirectory();
-	virtual FilePath GetSciteDefaultHome();
-	virtual FilePath GetSciteUserHome();
+	FilePath GetDefaultDirectory() override;
+	FilePath GetSciteDefaultHome() override;
+	FilePath GetSciteUserHome() override;
 
-	virtual void SetFileProperties(PropSetFile &ps);
-	virtual void SetStatusBarText(const char *s);
+	void SetFileProperties(PropSetFile &ps) override;
+	void SetStatusBarText(const char *s) override;
 
-	virtual void TabInsert(int index, const GUI::gui_char *title);
-	virtual void TabSelect(int index);
-	virtual void RemoveAllTabs();
+	void TabInsert(int index, const GUI::gui_char *title) override;
+	void TabSelect(int index) override;
+	void RemoveAllTabs() override;
 
 	/// Warn the user, by means defined in its properties.
-	virtual void WarnUser(int warnID);
+	void WarnUser(int warnID) override;
 
-	virtual void Notify(const SCNotification *notification);
-	virtual void ShowToolBar();
-	virtual void ShowTabBar();
-	virtual void ShowStatusBar();
-	virtual void ActivateWindow(const char *timestamp);
+	void Notify(SCNotification *notification) override;
+	void ShowToolBar() override;
+	void ShowTabBar() override;
+	void ShowStatusBar() override;
+	void ActivateWindow(const char *timestamp) override;
 	void ExecuteHelp(const char *cmd);
 	void ExecuteOtherHelp(const char *cmd);
-	void CopyAsRTF();
-	void CopyPath();
+	void CopyAsRTF() override;
+	void CopyPath() override;
 	void FullScreenToggle();
 	void Command(WPARAM wParam, LPARAM lParam);
-	HWND MainHWND();
+	HWND MainHWND() noexcept;
 
-	virtual void UserStripShow(const char *description);
-	virtual void UserStripSet(int control, const char *value);
-	virtual void UserStripSetList(int control, const char *value);
-	virtual const char *UserStripValue(int control);
+	void UserStripShow(const char *description) override;
+	void UserStripSet(int control, const char *value) override;
+	void UserStripSetList(int control, const char *value) override;
+	std::string UserStripValue(int control) override;
 	void UserStripClosed();
-	virtual void ShowBackgroundProgress(const GUI::gui_string &explanation, int size, int progress);
+	void ShowBackgroundProgress(const GUI::gui_string &explanation, size_t size, size_t progress) override;
 	BOOL FindMessage(HWND hDlg, UINT message, WPARAM wParam);
 	static INT_PTR CALLBACK FindDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 	BOOL ReplaceMessage(HWND hDlg, UINT message, WPARAM wParam);
 	static INT_PTR CALLBACK ReplaceDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-	virtual void UIClosed();
+	void UIClosed() override;
 	void PerformGrep();
 	void FillCombos(Dialog &dlg);
+	void FillCombosForGrep(Dialog &dlg);
 	BOOL GrepMessage(HWND hDlg, UINT message, WPARAM wParam);
 	static INT_PTR CALLBACK GrepDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-	virtual void FindIncrement();
-	virtual void Find();
-	virtual void FindInFiles();
-	virtual void Replace();
-	virtual void FindReplace(bool replace);
-	virtual void DestroyFindReplace();
+	void FindIncrement() override;
+	void Find() override;
+	void FindInFiles() override;
+	void Replace() override;
+	void FindReplace(bool replace) override;
+	void DestroyFindReplace() override;
 
 	BOOL GoLineMessage(HWND hDlg, UINT message, WPARAM wParam);
 	static INT_PTR CALLBACK GoLineDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-	virtual void GoLineDialog();
+	void GoLineDialog() override;
 
 	BOOL AbbrevMessage(HWND hDlg, UINT message, WPARAM wParam);
 	static INT_PTR CALLBACK AbbrevDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-	virtual bool AbbrevDialog();
+	bool AbbrevDialog() override;
 
 	BOOL TabSizeMessage(HWND hDlg, UINT message, WPARAM wParam);
 	static INT_PTR CALLBACK TabSizeDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-	virtual void TabSizeDialog();
+	void TabSizeDialog() override;
 
-	virtual bool ParametersOpen();
-	void ParamGrab();
-	virtual bool ParametersDialog(bool modal);
+	bool ParametersOpen() override;
+	void ParamGrab() override;
+	bool ParametersDialog(bool modal) override;
 	BOOL ParametersMessage(HWND hDlg, UINT message, WPARAM wParam);
 	static INT_PTR CALLBACK ParametersDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -370,72 +359,76 @@ public:
 	explicit SciTEWin(Extension *ext = 0);
 	~SciTEWin();
 
-	static bool DialogHandled(GUI::WindowID id, MSG *pmsg);
+	static bool DialogHandled(GUI::WindowID id, MSG *pmsg) noexcept;
 	bool ModelessHandler(MSG *pmsg);
 
 	void CreateUI();
 	/// Management of the command line parameters.
 	void Run(const GUI::gui_char *cmdLine);
-	uptr_t EventLoop();
-	void OutputAppendEncodedStringSynchronised(GUI::gui_string s, int codePageDocument);
+	uintptr_t EventLoop();
+	void OutputAppendEncodedStringSynchronised(const GUI::gui_string &s, int codePageDocument);
 	void ResetExecution();
 	void ExecuteNext();
 	DWORD ExecuteOne(const Job &jobToRun);
 	void ProcessExecute();
 	void ShellExec(const std::string &cmd, const char *dir);
-	virtual void Execute();
-	virtual void StopExecute();
-	virtual void AddCommand(const std::string &cmd, const std::string &dir, JobSubsystem jobType, const std::string &input = "", int flags = 0);
+	void Execute() override;
+	void StopExecute() override;
+	void AddCommand(const std::string &cmd, const std::string &dir, JobSubsystem jobType, const std::string &input = "", int flags = 0) override;
 
-	virtual bool PerformOnNewThread(Worker *pWorker);
-	virtual void PostOnMainThread(int cmd, Worker *pWorker);
-	virtual void WorkerCommand(int cmd, Worker *pWorker);
+	void PostOnMainThread(int cmd, Worker *pWorker) override;
+	void WorkerCommand(int cmd, Worker *pWorker) override;
 
 	void Creation();
 	LRESULT KeyDown(WPARAM wParam);
 	LRESULT KeyUp(WPARAM wParam);
-	virtual void AddToPopUp(const char *label, int cmd=0, bool enabled=true);
+	void AddToPopUp(const char *label, int cmd=0, bool enabled=true) override;
 	LRESULT ContextMenuMessage(UINT iMessage, WPARAM wParam, LPARAM lParam);
-	void CheckForScintillaFailure(int statusFailure);
+	void CheckForScintillaFailure(SA::Status statusFailure);
 	LRESULT WndProc(UINT iMessage, WPARAM wParam, LPARAM lParam);
 
-	virtual std::string EncodeString(const std::string &s);
-	virtual std::string GetRangeInUIEncoding(GUI::ScintillaWindow &wCurrent, int selStart, int selEnd);
+	std::string EncodeString(const std::string &s) override;
+	std::string GetRangeInUIEncoding(GUI::ScintillaWindow &win, SA::Range range) override;
 
-	HACCEL GetAcceleratorTable() {
+	HACCEL GetAcceleratorTable() noexcept {
 		return hAccTable;
 	}
 
-	uptr_t GetInstance();
+	uintptr_t GetInstance() override;
 	static void Register(HINSTANCE hInstance_);
 	static LRESULT PASCAL TWndProc(
-	    HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
+		HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
 	friend class UniqueInstance;
 };
 
-inline bool IsKeyDown(int key) {
+inline bool IsKeyDown(int key) noexcept {
 	return (::GetKeyState(key) & 0x80000000) != 0;
 }
 
+GUI::Point PointOfCursor() noexcept;
+GUI::Point ClientFromScreen(HWND hWnd, GUI::Point ptScreen) noexcept;
+
 // Common minor conversions
 
-inline GUI::Point PointFromLong(LPARAM lPoint) {
+inline GUI::Point PointFromLong(LPARAM lPoint) noexcept {
 	return GUI::Point(static_cast<short>(LOWORD(lPoint)), static_cast<short>(HIWORD(lPoint)));
 }
 
-inline int ControlIDOfWParam(WPARAM wParam) {
+inline int ControlIDOfWParam(WPARAM wParam) noexcept {
 	return wParam & 0xffff;
 }
 
-inline HWND HwndOf(GUI::Window w) {
+inline HWND HwndOf(GUI::Window w) noexcept {
 	return static_cast<HWND>(w.GetID());
 }
 
-inline HMENU HmenuID(size_t id) {
+inline HMENU HmenuID(size_t id) noexcept {
 	return reinterpret_cast<HMENU>(id);
 }
 
-inline POINT *PointPointer(GUI::Point *pt) {
+inline POINT *PointPointer(GUI::Point *pt) noexcept {
 	return reinterpret_cast<POINT *>(pt);
 }
+
+#endif

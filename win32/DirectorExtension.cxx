@@ -10,46 +10,53 @@
 #include <time.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
-#include <set>
 #include <map>
+#include <set>
+#include <memory>
+#include <chrono>
+#include <atomic>
+#include <mutex>
 
 #undef _WIN32_WINNT
 #define _WIN32_WINNT  0x0602
 #include <windows.h>
 #include <commctrl.h>
 
-#include "Scintilla.h"
 #include "ILexer.h"
 
+#include "ScintillaTypes.h"
+#include "ScintillaCall.h"
+
 #include "GUI.h"
+#include "ScintillaWindow.h"
 #include "StringList.h"
 #include "StringHelpers.h"
 #include "FilePath.h"
 #include "StyleDefinition.h"
 #include "PropSetFile.h"
 #include "Extender.h"
-#include "DirectorExtension.h"
 #include "SciTE.h"
-#include "Mutex.h"
 #include "JobQueue.h"
 #include "Cookie.h"
 #include "Worker.h"
 #include "MatchMarker.h"
 #include "SciTEBase.h"
+#include "DirectorExtension.h"
 
-static HWND wDirector = 0;
-static HWND wCorrespondent = 0;
-static HWND wReceiver = 0;
+static HWND wDirector {};
+static HWND wCorrespondent {};
+static HWND wReceiver {};
 static bool startedByDirector = false;
 static bool shuttingDown = false;
 unsigned int SDI = 0;
 
-static bool HasConnection() {
-	return (wDirector != 0) || (wCorrespondent != 0);
+static bool HasConnection() noexcept {
+	return wDirector || wCorrespondent;
 }
 
-static void SendDirector(const char *verb, const char *arg = 0) {
+static void SendDirector(const char *verb, const char *arg = nullptr) {
 	if (HasConnection()) {
 		HWND wDestination = wCorrespondent;
 		std::string addressedMessage;
@@ -68,23 +75,22 @@ static void SendDirector(const char *verb, const char *arg = 0) {
 		std::string slashedMessage = Slash(addressedMessage, false);
 		COPYDATASTRUCT cds;
 		cds.dwData = 0;
-		cds.cbData = static_cast<int>(slashedMessage.length());
+		cds.cbData = static_cast<DWORD>(slashedMessage.length());
 		slashedMessage.append(1, '\0');	// Ensure NUL at end of string
-		cds.lpData = static_cast<void *>(
-			                &slashedMessage[0]);
+		cds.lpData = &slashedMessage[0];
 		::SendMessage(wDestination, WM_COPYDATA,
-			            reinterpret_cast<WPARAM>(wReceiver),
-			            reinterpret_cast<LPARAM>(&cds));
+			      reinterpret_cast<WPARAM>(wReceiver),
+			      reinterpret_cast<LPARAM>(&cds));
 	}
 }
 
-static void SendDirector(const char *verb, sptr_t arg) {
-	std::string s = StdStringFromSizeT(static_cast<size_t>(arg));
+static void SendDirector(const char *verb, intptr_t arg) {
+	std::string s = std::to_string(arg);
 	::SendDirector(verb, s.c_str());
 }
 
-static HWND HwndFromString(const char *s) {
-	return reinterpret_cast<HWND>(static_cast<uptr_t>(atoi(s)));
+static HWND HwndFromString(const char *s) noexcept {
+	return reinterpret_cast<HWND>(static_cast<uintptr_t>(atoll(s)));
 }
 
 static void CheckEnvironment(ExtensionAPI *phost) {
@@ -95,7 +101,7 @@ static void CheckEnvironment(ExtensionAPI *phost) {
 				startedByDirector = true;
 				wDirector = HwndFromString(director.c_str());
 				// Director is just seen so identify this to it
-				::SendDirector("identity", reinterpret_cast<sptr_t>(wReceiver));
+				::SendDirector("identity", reinterpret_cast<intptr_t>(wReceiver));
 			}
 		}
 		std::string sReceiver = StdStringFromSizeT(reinterpret_cast<size_t>(wReceiver));
@@ -106,17 +112,17 @@ static void CheckEnvironment(ExtensionAPI *phost) {
 static TCHAR DirectorExtension_ClassName[] = TEXT("DirectorExtension");
 
 static LRESULT HandleCopyData(LPARAM lParam) {
-	COPYDATASTRUCT *pcds = reinterpret_cast<COPYDATASTRUCT *>(lParam);
+	const COPYDATASTRUCT *pcds = reinterpret_cast<COPYDATASTRUCT *>(lParam);
 	// Copy into an temporary buffer to ensure \0 terminated
 	if (pcds->lpData) {
-		std::string dataCopy(static_cast<char *>(pcds->lpData), pcds->cbData);
+		std::string dataCopy(static_cast<const char *>(pcds->lpData), pcds->cbData);
 		DirectorExtension::Instance().HandleStringMessage(dataCopy.c_str());
 	}
 	return 0;
 }
 
 LRESULT PASCAL DirectorExtension_WndProc(
-    HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam) {
+	HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam) {
 	if (iMessage == WM_COPYDATA) {
 		return HandleCopyData(lParam);
 	} else if (iMessage == SDI) {
@@ -125,17 +131,17 @@ LRESULT PASCAL DirectorExtension_WndProc(
 	return ::DefWindowProc(hWnd, iMessage, wParam, lParam);
 }
 
-static void DirectorExtension_Register(HINSTANCE hInstance) {
+static void DirectorExtension_Register(HINSTANCE hInstance) noexcept {
 	WNDCLASS wndclass;
 	wndclass.style = 0;
 	wndclass.lpfnWndProc = DirectorExtension_WndProc;
 	wndclass.cbClsExtra = 0;
 	wndclass.cbWndExtra = 0;
 	wndclass.hInstance = hInstance;
-	wndclass.hIcon = 0;
-	wndclass.hCursor = NULL;
-	wndclass.hbrBackground = NULL;
-	wndclass.lpszMenuName = 0;
+	wndclass.hIcon = {};
+	wndclass.hCursor = {};
+	wndclass.hbrBackground = {};
+	wndclass.lpszMenuName = nullptr;
 	wndclass.lpszClassName = DirectorExtension_ClassName;
 	if (!::RegisterClass(&wndclass))
 		::exit(FALSE);
@@ -150,22 +156,22 @@ bool DirectorExtension::Initialise(ExtensionAPI *host_) {
 	host = host_;
 	SDI = ::RegisterWindowMessage(TEXT("SciTEDirectorInterface"));
 	HINSTANCE hInstance = reinterpret_cast<HINSTANCE>(
-	                          host->GetInstance());
+				      host->GetInstance());
 	DirectorExtension_Register(hInstance);
 	wReceiver = ::CreateWindow(
-	                DirectorExtension_ClassName,
-	                DirectorExtension_ClassName,
-	                0,
-	                0, 0, 0, 0,
-	                0,
-	                0,
-	                hInstance,
-	                0);
+			    DirectorExtension_ClassName,
+			    DirectorExtension_ClassName,
+			    0,
+			    0, 0, 0, 0,
+			    0,
+			    0,
+			    hInstance,
+			    nullptr);
 	if (!wReceiver)
 		::exit(FALSE);
 	// Make the frame window handle available so the director can activate it.
 	::SetWindowLongPtr(wReceiver, GWLP_USERDATA,
-		reinterpret_cast<LONG_PTR>((static_cast<SciTEBase*>(host))->GetID()));
+			   reinterpret_cast<LONG_PTR>((static_cast<SciTEBase *>(host))->GetID()));
 	CheckEnvironment(host);
 	return true;
 }
@@ -174,7 +180,7 @@ bool DirectorExtension::Finalise() {
 	::SendDirector("closing");
 	if (wReceiver)
 		::DestroyWindow(wReceiver);
-	wReceiver = 0;
+	wReceiver = {};
 	return true;
 }
 
@@ -241,7 +247,7 @@ bool DirectorExtension::OnSavePointLeft() {
 	return false;
 }
 
-bool DirectorExtension::OnStyle(unsigned int, int, int, StyleWriter *) {
+bool DirectorExtension::OnStyle(SA::Position, SA::Position, int, StyleWriter *) {
 	return false;
 }
 
@@ -291,11 +297,11 @@ void DirectorExtension::HandleStringMessage(const char *message) {
 			}
 		}
 		if (isprefix(cmd, "identity:")) {
-			char *arg = strchr(cmd, ':');
+			const char *arg = strchr(cmd, ':');
 			if (arg)
 				wDirector = HwndFromString(arg + 1);
 		} else if (isprefix(cmd, "closing:")) {
-			wDirector = 0;
+			wDirector = {};
 			if (startedByDirector) {
 				shuttingDown = true;
 				if (host) {
@@ -306,6 +312,6 @@ void DirectorExtension::HandleStringMessage(const char *message) {
 		} else if (host) {
 			host->Perform(cmd);
 		}
-		wCorrespondent = 0;
+		wCorrespondent = {};
 	}
 }

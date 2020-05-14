@@ -12,19 +12,20 @@
 #define JOBQUEUE_H
 
 enum JobSubsystem {
-    jobCLI = 0, jobGUI = 1, jobShell = 2, jobExtension = 3, jobHelp = 4, jobOtherHelp = 5, jobGrep = 6, jobImmediate = 7};
+	jobCLI = 0, jobGUI = 1, jobShell = 2, jobExtension = 3, jobHelp = 4, jobOtherHelp = 5, jobGrep = 6, jobImmediate = 7
+};
 
-JobSubsystem SubsystemFromChar(char c);
+JobSubsystem SubsystemFromChar(char c) noexcept;
 
 enum JobFlags {
-    jobForceQueue = 1,
-    jobHasInput = 2,
-    jobQuiet = 4,
-    // 8 reserved for jobVeryQuiet
-    jobRepSelMask = 48,
-    jobRepSelYes = 16,
-    jobRepSelAuto = 32,
-    jobGroupUndo = 64
+	jobForceQueue = 1,
+	jobHasInput = 2,
+	jobQuiet = 4,
+	// 8 reserved for jobVeryQuiet
+	jobRepSelMask = 48,
+	jobRepSelYes = 16,
+	jobRepSelAuto = 32,
+	jobGroupUndo = 64
 };
 
 struct JobMode {
@@ -44,96 +45,37 @@ public:
 	std::string input;
 	int flags;
 
-	Job() {
-		Clear();
-	}
-
-	Job(const std::string &command_, const FilePath &directory_, JobSubsystem jobType_, const std::string &input_, int flags_)
-		: command(command_), directory(directory_), jobType(jobType_), input(input_), flags(flags_) {
-	}
-
-	void Clear() {
-		command = "";
-		directory.Init();
-		jobType = jobCLI;
-		input = "";
-		flags = 0;
-	}
+	Job() noexcept;
+	Job(const std::string &command_, const FilePath &directory_, JobSubsystem jobType_, const std::string &input_, int flags_);
+	void Clear() noexcept;
 };
 
 class JobQueue {
+	std::atomic_bool cancelFlag;
 public:
-	Mutex *mutex;
-	bool clearBeforeExecute;
-	bool isBuilding;
-	bool isBuilt;
-	bool executing;
-	enum { commandMax = 2 };
-	int commandCurrent;
-	Job jobQueue[commandMax];
-	bool jobUsesOutputPane;
-	long cancelFlag;
-	bool timeCommands;
+	std::mutex mutex;
+	std::atomic_bool clearBeforeExecute;
+	std::atomic_bool isBuilding;
+	std::atomic_bool isBuilt;
+	std::atomic_bool executing;
+	static constexpr size_t commandMax = 2;
+	std::atomic_size_t commandCurrent;
+	std::vector<Job> jobQueue;
+	std::atomic_bool jobUsesOutputPane;
+	std::atomic_bool timeCommands;
 
-	JobQueue() {
-		mutex = Mutex::Create();
-		clearBeforeExecute = false;
-		isBuilding = false;
-		isBuilt = false;
-		executing = false;
-		commandCurrent = 0;
-		jobUsesOutputPane = false;
-		cancelFlag = 0L;
-		timeCommands = false;
-	}
+	JobQueue();
+	~JobQueue();
+	bool TimeCommands() const noexcept;
+	bool ClearBeforeExecute() const noexcept;
+	bool ShowOutputPane() const noexcept;
+	bool IsExecuting() const noexcept;
+	void SetExecuting(bool state) noexcept;
+	bool HasCommandToRun() const noexcept;
+	bool SetCancelFlag(bool value);
+	bool Cancelled() noexcept;
 
-	~JobQueue() {
-		delete mutex;
-		mutex = 0;
-	}
-
-	bool TimeCommands() const {
-		Lock lock(mutex);
-		return timeCommands;
-	}
-
-	bool ClearBeforeExecute() const {
-		Lock lock(mutex);
-		return clearBeforeExecute;
-	}
-
-	bool ShowOutputPane() const {
-		Lock lock(mutex);
-		return jobUsesOutputPane;
-	}
-
-	bool IsExecuting() const {
-		Lock lock(mutex);
-		return executing;
-	}
-
-	void SetExecuting(bool state) {
-		Lock lock(mutex);
-		executing = state;
-	}
-
-	bool HasCommandToRun() const {
-		return commandCurrent > 0;
-	}
-
-	long SetCancelFlag(long value) {
-		Lock lock(mutex);
-		long cancelFlagPrevious = cancelFlag;
-		cancelFlag = value;
-		return cancelFlagPrevious;
-	}
-
-	long Cancelled() {
-		Lock lock(mutex);
-		return cancelFlag;
-	}
-
-	void ClearJobs();
+	void ClearJobs() noexcept;
 	void AddCommand(const std::string &command, const FilePath &directory, JobSubsystem jobType, const std::string &input, int flags);
 };
 

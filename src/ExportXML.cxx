@@ -5,25 +5,34 @@
 // Copyright 1998-2006 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <time.h>
+#include <cstddef>
+#include <cstdlib>
+#include <cstdint>
+#include <cstring>
+#include <cstdio>
+#include <ctime>
 
 #include <string>
+#include <string_view>
 #include <vector>
-#include <set>
 #include <map>
+#include <set>
+#include <memory>
+#include <chrono>
 #include <sstream>
+#include <atomic>
+#include <mutex>
 
-#include "Scintilla.h"
+#include <fcntl.h>
+#include <sys/stat.h>
+
 #include "ILexer.h"
 
+#include "ScintillaTypes.h"
+#include "ScintillaCall.h"
+
 #include "GUI.h"
+#include "ScintillaWindow.h"
 
 #include "StringList.h"
 #include "StringHelpers.h"
@@ -33,7 +42,6 @@
 #include "StyleWriter.h"
 #include "Extender.h"
 #include "SciTE.h"
-#include "Mutex.h"
 #include "JobQueue.h"
 #include "Cookie.h"
 #include "Worker.h"
@@ -42,7 +50,7 @@
 
 //---------- Save to XML ----------
 
-void SciTEBase::SaveToXML(FilePath saveName) {
+void SciTEBase::SaveToXML(const FilePath &saveName) {
 
 	// Author: Hans Hagen / PRAGMA ADE / www.pragma-ade.com
 	// Version: 1.0 / august 18, 2003
@@ -73,30 +81,30 @@ void SciTEBase::SaveToXML(FilePath saveName) {
 	// but will eventually use utf-8 (once i know how to get them out).
 
 	RemoveFindMarks();
-	wEditor.Call(SCI_COLOURISE, 0, -1);
+	wEditor.ColouriseAll();
 
 	int tabSize = props.GetInt("tabsize");
 	if (tabSize == 0) {
 		tabSize = 4;
 	}
 
-	int lengthDoc = LengthDocument();
+	const SA::Position lengthDoc = LengthDocument();
 
 	TextReader acc(wEditor);
 
 	FILE *fp = saveName.Open(GUI_TEXT("wt"));
-	bool failedWrite = fp == NULL;
+	bool failedWrite = fp == nullptr;
 
 	if (fp) {
 
-		bool collapseSpaces = (props.GetInt("export.xml.collapse.spaces", 1) == 1);
-		bool collapseLines  = (props.GetInt("export.xml.collapse.lines", 1) == 1);
+		const bool collapseSpaces = (props.GetInt("export.xml.collapse.spaces", 1) == 1);
+		const bool collapseLines  = (props.GetInt("export.xml.collapse.lines", 1) == 1);
 
-		fprintf(fp, "<?xml version='1.0' encoding='%s'?>\n", (codePage == SC_CP_UTF8) ? "utf-8" : "ascii");
+		fprintf(fp, "<?xml version='1.0' encoding='%s'?>\n", (codePage == SA::CpUtf8) ? "utf-8" : "ascii");
 
-		fputs("<document xmlns='http://www.scintila.org/scite.rng'", fp);
+		fputs("<document xmlns='http://www.scintilla.org/scite.rng'", fp);
 		fprintf(fp, " filename='%s'",
-		        static_cast<const char *>(filePath.Name().AsUTF8().c_str()));
+			filePath.Name().AsUTF8().c_str());
 		fprintf(fp, " type='%s'", "unknown");
 		fprintf(fp, " version='%s'", "1.0");
 		fputs(">\n", fp);
@@ -106,7 +114,7 @@ void SciTEBase::SaveToXML(FilePath saveName) {
 		fputs("<text>\n", fp);
 
 		int styleCurrent = -1; // acc.StyleAt(0);
-		int lineNumber = 1;
+		SA::Line lineNumber = 1;
 		int lineIndex = 0;
 		bool styleDone = false;
 		bool lineDone = false;
@@ -115,9 +123,9 @@ void SciTEBase::SaveToXML(FilePath saveName) {
 		int spaceLen = 0;
 		int emptyLines = 0;
 
-		for (int i = 0; i < lengthDoc; i++) {
-			char ch = acc[i];
-			int style = acc.StyleAt(i);
+		for (SA::Position i = 0; i < lengthDoc; i++) {
+			const char ch = acc[i];
+			const int style = acc.StyleAt(i);
 			if (style != styleCurrent) {
 				styleCurrent = style;
 				styleNew = style;
@@ -125,7 +133,7 @@ void SciTEBase::SaveToXML(FilePath saveName) {
 			if (ch == ' ') {
 				spaceLen++;
 			} else if (ch == '\t') {
-				int ts = tabSize - (lineIndex % tabSize);
+				const int ts = tabSize - (lineIndex % tabSize);
 				lineIndex += ts - 1;
 				spaceLen += ts;
 			} else if (ch == '\f') {
@@ -145,7 +153,7 @@ void SciTEBase::SaveToXML(FilePath saveName) {
 				} else if (collapseLines) {
 					emptyLines++;
 				} else {
-					fprintf(fp, "<line n='%d'/>\n", lineNumber);
+					fprintf(fp, "<line n='%s'/>\n", std::to_string(lineNumber).c_str());
 				}
 				charDone = false;
 				lineNumber++;
@@ -156,7 +164,7 @@ void SciTEBase::SaveToXML(FilePath saveName) {
 				}
 				emptyLines = 0;
 				if (! lineDone) {
-					fprintf(fp, "<line n='%d'>", lineNumber);
+					fprintf(fp, "<line n='%s'>", std::to_string(lineNumber).c_str());
 					lineDone = true;
 				}
 				if (styleNew >= 0) {

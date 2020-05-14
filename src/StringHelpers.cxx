@@ -5,45 +5,43 @@
 // Copyright 2010 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
-#include <string.h>
-#include <stdio.h>
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
 
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <sstream>
 #include <algorithm>
 #include <functional>
-
-#include "Scintilla.h"
+#include <chrono>
 
 #include "GUI.h"
 #include "StringHelpers.h"
 
-bool StartsWith(GUI::gui_string const &s, GUI::gui_string const &start) {
+bool StartsWith(std::wstring_view s, std::wstring_view start) {
 	return (s.size() >= start.size()) &&
-		(std::equal(s.begin(), s.begin() + start.size(), start.begin()));
+	       (std::equal(s.begin(), s.begin() + start.size(), start.begin()));
 }
 
-bool StartsWith(std::string const &s, const char *start) {
-	const size_t startSize = strlen(start);
-	std::string sStart(start);
-	return (s.size() >= startSize) &&
-		(std::equal(s.begin(), s.begin() + startSize, sStart.begin()));
+bool StartsWith(std::string_view s, std::string_view start) {
+	return (s.size() >= start.size()) &&
+	       (std::equal(s.begin(), s.begin() + start.size(), start.begin()));
 }
 
-bool EndsWith(GUI::gui_string const &s, GUI::gui_string const &end) {
+bool EndsWith(std::wstring_view s, std::wstring_view end) {
 	return (s.size() >= end.size()) &&
-		(std::equal(s.begin() + s.size() - end.size(), s.end(), end.begin()));
+	       (std::equal(s.begin() + s.size() - end.size(), s.end(), end.begin()));
 }
 
-bool Contains(std::string const &s, char ch) {
+bool Contains(std::string const &s, char ch) noexcept {
 	return s.find(ch) != std::string::npos;
 }
 
 int Substitute(std::wstring &s, const std::wstring &sFind, const std::wstring &sReplace) {
 	int c = 0;
-	size_t lenFind = sFind.size();
-	size_t lenReplace = sReplace.size();
+	const size_t lenFind = sFind.size();
+	const size_t lenReplace = sReplace.size();
 	size_t posFound = s.find(sFind);
 	while (posFound != std::wstring::npos) {
 		s.replace(posFound, lenFind, sReplace);
@@ -55,8 +53,8 @@ int Substitute(std::wstring &s, const std::wstring &sFind, const std::wstring &s
 
 int Substitute(std::string &s, const std::string &sFind, const std::string &sReplace) {
 	int c = 0;
-	size_t lenFind = sFind.size();
-	size_t lenReplace = sReplace.size();
+	const size_t lenFind = sFind.size();
+	const size_t lenReplace = sReplace.size();
 	size_t posFound = s.find(sFind);
 	while (posFound != std::string::npos) {
 		s.replace(posFound, lenFind, sReplace);
@@ -67,7 +65,7 @@ int Substitute(std::string &s, const std::string &sFind, const std::string &sRep
 }
 
 bool RemoveStringOnce(std::string &s, const char *marker) {
-	size_t modText = s.find(marker);
+	const size_t modText = s.find(marker);
 	if (modText != std::string::npos) {
 		s.erase(modText, strlen(marker));
 		return true;
@@ -76,15 +74,11 @@ bool RemoveStringOnce(std::string &s, const char *marker) {
 }
 
 std::string StdStringFromInteger(int i) {
-	char number[32];
-	sprintf(number, "%0d", i);
-	return std::string(number);
+	return std::to_string(i);
 }
 
 std::string StdStringFromSizeT(size_t i) {
-	std::ostringstream strstrm;
-	strstrm << i;
-	return strstrm.str();
+	return std::to_string(i);
 }
 
 std::string StdStringFromDouble(double d, int precision) {
@@ -93,23 +87,52 @@ std::string StdStringFromDouble(double d, int precision) {
 	return std::string(number);
 }
 
-static int LowerCaseAZ(int c) {
-	if (c >= 'A' && c <= 'Z') {
-		return c - 'A' + 'a';
-	} else {
-		return c;
+int IntegerFromString(const std::string &val, int defaultValue) {
+	try {
+		if (val.length()) {
+			return std::stoi(val);
+		}
+	} catch (std::logic_error &) {
+		// Ignore bad values, either non-numeric or out of range numeric
 	}
+	return defaultValue;
+}
+
+intptr_t IntPtrFromString(const std::string &val, intptr_t defaultValue) {
+	try {
+		if (val.length()) {
+			return static_cast<intptr_t>(std::stoll(val));
+		}
+	} catch (std::logic_error &) {
+		// Ignore bad values, either non-numeric or out of range numeric
+	}
+	return defaultValue;
+}
+
+long long LongLongFromString(const std::string &val, long long defaultValue) {
+	try {
+		if (val.length()) {
+			return std::stoll(val);
+		}
+	} catch (std::logic_error &) {
+		// Ignore bad values, either non-numeric or out of range numeric
+	}
+	return defaultValue;
 }
 
 void LowerCaseAZ(std::string &s) {
-	std::transform(s.begin(), s.end(), s.begin(), std::ptr_fun<int, int>(LowerCaseAZ));
+	std::transform(s.begin(), s.end(), s.begin(), MakeLowerCase);
 }
 
-int CompareNoCase(const char *a, const char *b) {
+intptr_t IntegerFromText(const char *s) noexcept {
+	return static_cast<intptr_t>(atoll(s));
+}
+
+int CompareNoCase(const char *a, const char *b) noexcept {
 	while (*a && *b) {
 		if (*a != *b) {
-			char upperA = MakeUpperCase(*a);
-			char upperB = MakeUpperCase(*b);
+			const char upperA = MakeUpperCase(*a);
+			const char upperB = MakeUpperCase(*b);
 			if (upperA != upperB)
 				return upperA - upperB;
 		}
@@ -120,11 +143,23 @@ int CompareNoCase(const char *a, const char *b) {
 	return *a - *b;
 }
 
-bool EqualCaseInsensitive(const char *a, const char *b) {
+bool EqualCaseInsensitive(const char *a, const char *b) noexcept {
 	return 0 == CompareNoCase(a, b);
 }
 
-bool isprefix(const char *target, const char *prefix) {
+bool EqualCaseInsensitive(std::string_view a, std::string_view b) noexcept {
+	if (a.length() != b.length()) {
+		return false;
+	}
+	for (size_t i = 0; i < a.length(); i++) {
+		if (MakeUpperCase(a[i]) != MakeUpperCase(b[i])) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool isprefix(const char *target, const char *prefix) noexcept {
 	while (*target && *prefix) {
 		if (*target != *prefix)
 			return false;
@@ -137,7 +172,33 @@ bool isprefix(const char *target, const char *prefix) {
 		return true;
 }
 
-unsigned int UTF32Character(const unsigned char *utf8) {
+std::u32string UTF32FromUTF8(std::string_view s) {
+	std::u32string ret;
+	while (!s.empty()) {
+		const unsigned char uc = static_cast<unsigned char>(s.front());
+		size_t lenChar = 1;
+		if (uc >= 0x80 + 0x40 + 0x20 + 0x10) {
+			lenChar = 4;
+		} else if (uc >= 0x80 + 0x40 + 0x20) {
+			lenChar = 3;
+		} else if (uc >= 0x80 + 0x40) {
+			lenChar = 2;
+		}
+		if (lenChar > s.length()) {
+			// Character fragment
+			for (size_t i = 0; i < s.length(); i++) {
+				ret.push_back(static_cast<unsigned char>(s[i]));
+			}
+			break;
+		}
+		const char32_t ch32 = UTF32Character(s.data());
+		ret.push_back(ch32);
+		s.remove_prefix(lenChar);
+	}
+	return ret;
+}
+
+unsigned int UTF32Character(const char *utf8) noexcept {
 	unsigned char ch = utf8[0];
 	unsigned int u32Char;
 	if (ch < 0x80) {
@@ -169,34 +230,34 @@ unsigned int UTF32Character(const unsigned char *utf8) {
  */
 std::string Slash(const std::string &s, bool quoteQuotes) {
 	std::string oRet;
-	for (std::string::const_iterator it = s.begin(); it != s.end(); ++it) {
-		if (*it == '\a') {
+	for (const char ch : s) {
+		if (ch == '\a') {
 			oRet.append("\\a");
-		} else if (*it == '\b') {
+		} else if (ch == '\b') {
 			oRet.append("\\b");
-		} else if (*it == '\f') {
+		} else if (ch == '\f') {
 			oRet.append("\\f");
-		} else if (*it == '\n') {
+		} else if (ch == '\n') {
 			oRet.append("\\n");
-		} else if (*it == '\r') {
+		} else if (ch == '\r') {
 			oRet.append("\\r");
-		} else if (*it == '\t') {
+		} else if (ch == '\t') {
 			oRet.append("\\t");
-		} else if (*it == '\v') {
+		} else if (ch == '\v') {
 			oRet.append("\\v");
-		} else if (*it == '\\') {
+		} else if (ch == '\\') {
 			oRet.append("\\\\");
-		} else if (quoteQuotes && (*it == '\'')) {
+		} else if (quoteQuotes && (ch == '\'')) {
 			oRet.append("\\\'");
-		} else if (quoteQuotes && (*it == '\"')) {
+		} else if (quoteQuotes && (ch == '\"')) {
 			oRet.append("\\\"");
-		} else if (IsASCII(*it) && (*it < ' ')) {
+		} else if (IsASCII(ch) && (ch < ' ')) {
 			oRet.push_back('\\');
-			oRet.push_back(static_cast<char>((*it >> 6) + '0'));
-			oRet.push_back(static_cast<char>((*it >> 3) + '0'));
-			oRet.push_back(static_cast<char>((*it & 0x7) + '0'));
+			oRet.push_back(static_cast<char>((ch >> 6) + '0'));
+			oRet.push_back(static_cast<char>((ch >> 3) + '0'));
+			oRet.push_back(static_cast<char>((ch & 0x7) + '0'));
 		} else {
-			oRet.push_back(*it);
+			oRet.push_back(ch);
 		}
 	}
 	return oRet;
@@ -205,14 +266,14 @@ std::string Slash(const std::string &s, bool quoteQuotes) {
 /**
  * Is the character an octal digit?
  */
-static bool IsOctalDigit(char ch) {
+static bool IsOctalDigit(char ch) noexcept {
 	return ch >= '0' && ch <= '7';
 }
 
 /**
  * If the character is an hexa digit, get its value.
  */
-static int GetHexaDigit(char ch) {
+static int GetHexaDigit(char ch) noexcept {
 	if (ch >= '0' && ch <= '9') {
 		return ch - '0';
 	}
@@ -228,8 +289,8 @@ static int GetHexaDigit(char ch) {
 /**
  * Convert C style \a, \b, \f, \n, \r, \t, \v, \ooo and \xhh into their indicated characters.
  */
-unsigned int UnSlash(char *s) {
-	char *sStart = s;
+unsigned int UnSlash(char *s) noexcept {
+	const char *sStart = s;
 	char *o = s;
 
 	while (*s) {
@@ -294,16 +355,16 @@ unsigned int UnSlash(char *s) {
 
 std::string UnSlashString(const char *s) {
 	std::string sCopy(s, strlen(s) + 1);
-	unsigned int len = UnSlash(&sCopy[0]);
+	const unsigned int len = UnSlash(&sCopy[0]);
 	return sCopy.substr(0, len);
 }
 
 /**
  * Convert C style \0oo into their indicated characters.
- * This is used to get control characters into the regular expresion engine.
+ * This is used to get control characters into the regular expression engine.
  */
-static unsigned int UnSlashLowOctal(char *s) {
-	char *sStart = s;
+static unsigned int UnSlashLowOctal(char *s) noexcept {
+	const char *sStart = s;
 	char *o = s;
 	while (*s) {
 		if ((s[0] == '\\') && (s[1] == '0') && IsOctalDigit(s[2]) && IsOctalDigit(s[3])) {
@@ -322,6 +383,6 @@ static unsigned int UnSlashLowOctal(char *s) {
 
 std::string UnSlashLowOctalString(const char *s) {
 	std::string sCopy(s, strlen(s) + 1);
-	unsigned int len = UnSlashLowOctal(&sCopy[0]);
+	const unsigned int len = UnSlashLowOctal(&sCopy[0]);
 	return sCopy.substr(0, len);
 }

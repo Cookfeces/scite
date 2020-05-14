@@ -1,4 +1,4 @@
-// Utf8_16.cxx
+// @file Utf8_16.cxx
 // Copyright (C) 2002 Scott Kirkwood
 //
 // Permission to use, copy, modify, distribute and sell this code
@@ -9,10 +9,11 @@
 // It is provided "as is" without express or implied warranty.
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "Utf8_16.h"
+#include <cassert>
+#include <cstring>
+#include <cstdio>
 
-#include <memory.h>
-#include <stdio.h>
+#include "Utf8_16.h"
 
 const Utf8_16::utf8 Utf8_16::k_Boms[][3] = {
 	{0x00, 0x00, 0x00},  // Unknown
@@ -32,8 +33,8 @@ enum { SURROGATE_FIRST_VALUE = 0x10000 };
 Utf8_16_Read::Utf8_16_Read() {
 	m_eEncoding = eUnknown;
 	m_nBufSize = 0;
-	m_pBuf = NULL;
-	m_pNewBuf = NULL;
+	m_pBuf = nullptr;
+	m_pNewBuf = nullptr;
 	m_bFirstRead = true;
 	m_nLen = 0;
 	m_leadSurrogate[0] = 0;
@@ -43,12 +44,12 @@ Utf8_16_Read::Utf8_16_Read() {
 Utf8_16_Read::~Utf8_16_Read() {
 	if ((m_eEncoding != eUnknown) && (m_eEncoding != eUtf8)) {
 		delete [] m_pNewBuf;
-		m_pNewBuf = NULL;
+		m_pNewBuf = nullptr;
 	}
 }
 
-size_t Utf8_16_Read::convert(char* buf, size_t len) {
-	m_pBuf = reinterpret_cast<ubyte*>(buf);
+size_t Utf8_16_Read::convert(char *buf, size_t len) {
+	m_pBuf = reinterpret_cast<ubyte *>(buf);
 	m_nLen = len;
 
 	int nSkip = 0;
@@ -72,25 +73,24 @@ size_t Utf8_16_Read::convert(char* buf, size_t len) {
 	}
 
 	// Else...
-	size_t newSize = len + len / 2 + 4 + 1;
+	const size_t newSize = len + len / 2 + 4 + 1;
 	if (m_nBufSize != newSize) {
 		delete [] m_pNewBuf;
 		m_pNewBuf = new ubyte[newSize];
 		m_nBufSize = newSize;
 	}
 
-	ubyte* pCur = m_pNewBuf;
+	ubyte *pCur = m_pNewBuf;
 
 	ubyte endSurrogate[2] = { 0, 0 };
-	ubyte *pbufPrependSurrogate = NULL;
+	ubyte *pbufPrependSurrogate = nullptr;
 	if (m_leadSurrogate[0]) {
 		pbufPrependSurrogate = new ubyte[len - nSkip + 2];
 		memcpy(pbufPrependSurrogate, m_leadSurrogate, 2);
 		if (m_pBuf)
 			memcpy(pbufPrependSurrogate + 2, m_pBuf + nSkip, len - nSkip);
 		m_Iter16.set(pbufPrependSurrogate, len - nSkip + 2, m_eEncoding, endSurrogate);
-	}
-	else {
+	} else {
 		if (!m_pBuf)
 			return 0;
 		m_Iter16.set(m_pBuf + nSkip, len - nSkip, m_eEncoding, endSurrogate);
@@ -108,7 +108,7 @@ size_t Utf8_16_Read::convert(char* buf, size_t len) {
 	return pCur - m_pNewBuf;
 }
 
-int Utf8_16_Read::determineEncoding() {
+int Utf8_16_Read::determineEncoding() noexcept {
 	m_eEncoding = eUnknown;
 
 	int nRet = 0;
@@ -133,8 +133,8 @@ int Utf8_16_Read::determineEncoding() {
 
 Utf8_16_Write::Utf8_16_Write() {
 	m_eEncoding = eUnknown;
-	m_pFile = NULL;
-	m_pBuf = NULL;
+	m_pFile = nullptr;
+	m_pBuf = nullptr;
 	m_bFirstWrite = true;
 	m_nBufSize = 0;
 }
@@ -145,18 +145,18 @@ Utf8_16_Write::~Utf8_16_Write() {
 	}
 }
 
-void Utf8_16_Write::setfile(FILE *pFile) {
+void Utf8_16_Write::setfile(FILE *pFile) noexcept {
 	m_pFile = pFile;
 
 	m_bFirstWrite = true;
 }
 
 // Swap the two low order bytes of an integer value
-static int swapped(int v) {
+static int swapped(int v) noexcept {
 	return ((v & 0xFF) << 8) + (v >> 8);
 }
 
-size_t Utf8_16_Write::fwrite(const void* p, size_t _size) {
+size_t Utf8_16_Write::fwrite(const void *p, size_t _size) {
 	if (!m_pFile) {
 		return 0; // fail
 	}
@@ -189,63 +189,65 @@ size_t Utf8_16_Write::fwrite(const void* p, size_t _size) {
 	}
 
 	Utf8_Iter iter8;
-	iter8.set(static_cast<const ubyte*>(p), _size, m_eEncoding);
+	iter8.set(static_cast<const ubyte *>(p), _size, m_eEncoding);
 
-	utf16* pCur = m_pBuf;
+	utf16 *pCur = m_pBuf;
 
 	for (; iter8; ++iter8) {
 		if (iter8.canGet()) {
 			int codePoint = iter8.get();
 			if (codePoint >= SURROGATE_FIRST_VALUE) {
 				codePoint -= SURROGATE_FIRST_VALUE;
-				int lead = (codePoint >> 10) + SURROGATE_LEAD_FIRST;
+				const int lead = (codePoint >> 10) + SURROGATE_LEAD_FIRST;
 				*pCur++ = static_cast<utf16>((m_eEncoding == eUtf16BigEndian) ?
-					swapped(lead) : lead);
-				int trail = (codePoint & 0x3ff) + SURROGATE_TRAIL_FIRST;
+							     swapped(lead) : lead);
+				const int trail = (codePoint & 0x3ff) + SURROGATE_TRAIL_FIRST;
 				*pCur++ = static_cast<utf16>((m_eEncoding == eUtf16BigEndian) ?
-					swapped(trail) : trail);
+							     swapped(trail) : trail);
 			} else {
 				*pCur++ = static_cast<utf16>((m_eEncoding == eUtf16BigEndian) ?
-					swapped(codePoint) : codePoint);
+							     swapped(codePoint) : codePoint);
 			}
 		}
 	}
 
-	size_t ret = ::fwrite(m_pBuf, (const char*)pCur - (const char*)m_pBuf, 1, m_pFile);
+	const size_t ret = ::fwrite(m_pBuf,
+				    reinterpret_cast<const char *>(pCur) - reinterpret_cast<const char *>(m_pBuf),
+				    1, m_pFile);
 
 	return ret;
 }
 
-int Utf8_16_Write::fclose() {
+int Utf8_16_Write::fclose() noexcept {
 	delete [] m_pBuf;
-	m_pBuf = NULL;
+	m_pBuf = nullptr;
 
-	int ret = ::fclose(m_pFile);
-	m_pFile = NULL;
+	const int ret = ::fclose(m_pFile);
+	m_pFile = nullptr;
 
 	return ret;
 }
 
-void Utf8_16_Write::setEncoding(Utf8_16::encodingType eType) {
+void Utf8_16_Write::setEncoding(Utf8_16::encodingType eType) noexcept {
 	m_eEncoding = eType;
 }
 
 //=================================================================
-Utf8_Iter::Utf8_Iter() {
+Utf8_Iter::Utf8_Iter() noexcept {
 	reset();
 }
 
-void Utf8_Iter::reset() {
-	m_pBuf = NULL;
-	m_pRead = NULL;
-	m_pEnd = NULL;
+void Utf8_Iter::reset() noexcept {
+	m_pBuf = nullptr;
+	m_pRead = nullptr;
+	m_pEnd = nullptr;
 	m_eState = eStart;
 	m_nCur = 0;
 	m_eEncoding = eUnknown;
 }
 
 void Utf8_Iter::set
-	(const ubyte* pBuf, size_t nLen, encodingType eEncoding) {
+(const ubyte *pBuf, size_t nLen, encodingType eEncoding) {
 	m_pBuf = pBuf;
 	m_pRead = pBuf;
 	m_pEnd = pBuf + nLen;
@@ -254,7 +256,7 @@ void Utf8_Iter::set
 	// Note: m_eState, m_nCur not reset
 }
 // Go to the next byte.
-void Utf8_Iter::operator++() {
+void Utf8_Iter::operator++() noexcept {
 	switch (m_eState) {
 	case eStart:
 		if ((0xF0 & *m_pRead) == 0xF0) {
@@ -287,19 +289,19 @@ void Utf8_Iter::operator++() {
 	++m_pRead;
 }
 
-void Utf8_Iter::toStart() {
+void Utf8_Iter::toStart() noexcept {
 	m_eState = eStart;
 }
 
 //==================================================
-Utf16_Iter::Utf16_Iter() {
+Utf16_Iter::Utf16_Iter() noexcept {
 	reset();
 }
 
-void Utf16_Iter::reset() {
-	m_pBuf = NULL;
-	m_pRead = NULL;
-	m_pEnd = NULL;
+void Utf16_Iter::reset() noexcept {
+	m_pBuf = nullptr;
+	m_pRead = nullptr;
+	m_pEnd = nullptr;
 	m_eState = eStart;
 	m_nCur = 0;
 	m_nCur16 = 0;
@@ -307,13 +309,13 @@ void Utf16_Iter::reset() {
 }
 
 void Utf16_Iter::set
-	(const ubyte* pBuf, size_t nLen, encodingType eEncoding, ubyte *endSurrogate) {
+(const ubyte *pBuf, size_t nLen, encodingType eEncoding, ubyte *endSurrogate) noexcept {
 	m_pBuf = pBuf;
 	m_pRead = pBuf;
 	m_pEnd = pBuf + nLen;
 	m_eEncoding = eEncoding;
 	if (nLen > 2) {
-		utf16 lastElement = read(m_pEnd-2);
+		const utf16 lastElement = read(m_pEnd-2);
 		if (lastElement >= SURROGATE_LEAD_FIRST && lastElement <= SURROGATE_LEAD_LAST) {
 			// Buffer ends with lead surrogate so cut off buffer and store
 			endSurrogate[0] = m_pEnd[-2];
@@ -328,7 +330,7 @@ void Utf16_Iter::set
 // Goes to the next byte.
 // Not the next symbol which you might expect.
 // This way we can continue from a partial buffer that doesn't align
-void Utf16_Iter::operator++() {
+void Utf16_Iter::operator++() noexcept {
 	switch (m_eState) {
 	case eStart:
 		if (m_pRead >= m_pEnd) {
@@ -347,14 +349,13 @@ void Utf16_Iter::operator++() {
 			if (m_pRead >= m_pEnd) {
 				// Have a lead surrogate at end of document with no access to trail surrogate.
 				// May be end of document.
-				--m_pRead;	// With next increment, leave pointer just past buffer 
+				--m_pRead;	// With next increment, leave pointer just past buffer
 			} else {
 				int trail;
 				if (m_eEncoding == eUtf16LittleEndian) {
 					trail = *m_pRead++;
 					trail |= static_cast<utf16>(*m_pRead << 8);
-				}
-				else {
+				} else {
 					trail = static_cast<utf16>(*m_pRead++ << 8);
 					trail |= *m_pRead;
 				}
@@ -392,7 +393,7 @@ void Utf16_Iter::operator++() {
 	}
 }
 
-Utf8_16::utf16 Utf16_Iter::read(const ubyte* pRead) const {
+Utf8_16::utf16 Utf16_Iter::read(const ubyte *pRead) const noexcept {
 	if (m_eEncoding == eUtf16LittleEndian) {
 		return pRead[0] | static_cast<utf16>(pRead[1] << 8);
 	} else {

@@ -10,16 +10,14 @@
 
 #include <string>
 
-#include "Scintilla.h"
-#include "GUI.h"
 #include "SciTEWin.h"
 
 UniqueInstance::UniqueInstance() {
-	stw = 0;
+	stw = nullptr;
 	identityMessage = ::RegisterWindowMessage(TEXT("SciTEInstanceIdentifier"));
-	mutex = 0;
+	mutex = {};
 	bAlreadyRunning = false;
-	hOtherWindow = NULL;
+	hOtherWindow = {};
 }
 
 UniqueInstance::~UniqueInstance() {
@@ -28,7 +26,7 @@ UniqueInstance::~UniqueInstance() {
 	}
 }
 
-void UniqueInstance::Init(SciTEWin *stw_) {
+void UniqueInstance::Init(SciTEWin *stw_) noexcept {
 	stw = stw_;
 }
 
@@ -53,7 +51,7 @@ bool UniqueInstance::AcceptToOpenFiles(bool bAccept) {
 		// created in a different user session because of passing
 		// NULL for the SECURITY_ATTRIBUTES on mutex creation
 		bError = (::GetLastError() == ERROR_ALREADY_EXISTS ||
-		          ::GetLastError() == ERROR_ACCESS_DENIED);
+			  ::GetLastError() == ERROR_ACCESS_DENIED);
 	} else {
 		::CloseHandle(mutex);
 	}
@@ -76,10 +74,10 @@ void UniqueInstance::ToggleOpenFilesHere() {
 	if (!AcceptToOpenFiles(!stw->openFilesHere)) {
 		// Cannot set the mutex, search the previous instance holding it
 		CallSearchOnAllWindows();
-		if (hOtherWindow != NULL) {
+		if (hOtherWindow) {
 			// Found, we indicate it to yield the acceptation of files
 			::SendMessage(hOtherWindow, identityMessage, 0,
-			              static_cast<LPARAM>(1));
+				      static_cast<LPARAM>(1));
 		}
 	}
 	stw->CheckMenus();
@@ -88,12 +86,12 @@ void UniqueInstance::ToggleOpenFilesHere() {
 /**
  * Manage the received COPYDATA message with a command line from another instance.
  */
-LRESULT UniqueInstance::CopyData(COPYDATASTRUCT *pcds) {
+LRESULT UniqueInstance::CopyData(const COPYDATASTRUCT *pcds) {
 	if (pcds) {
 		if (stw->props.GetInt("minimize.to.tray")) {
 			stw->RestoreFromTray();
 		}
-		const char *text = static_cast<char *>(pcds->lpData);
+		const char *text = static_cast<const char *>(pcds->lpData);
 		if (text && strlen(text) > 0) {
 			GUI::gui_string args = stw->ProcessArgs(GUI::StringFromUTF8(text).c_str());
 			stw->ProcessCommandLine(args, 0);
@@ -141,11 +139,11 @@ void UniqueInstance::CheckOtherInstance() {
 	HDESK desktop = ::GetThreadDesktop(::GetCurrentThreadId());
 	DWORD len = 0;
 	// Query the needed size for the buffer
-	BOOL result = ::GetUserObjectInformation(desktop, UOI_NAME, NULL, 0, &len);
+	const BOOL result = ::GetUserObjectInformation(desktop, UOI_NAME, nullptr, 0, &len);
 	if (result == 0 && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 		// WinNT / Win2000
 		std::wstring info(len, 0);	// len is actually bytes so this is twice length needed
-		::GetUserObjectInformation(desktop, UOI_NAME, &info[0], len, NULL);
+		::GetUserObjectInformation(desktop, UOI_NAME, &info[0], len, nullptr);
 		mutexName += info;
 	}
 	// Try to set the mutex. If return false, it failed, there is already another instance.
@@ -221,19 +219,19 @@ void UniqueInstance::SendCommands(const char *cmdLine) {
  */
 BOOL CALLBACK UniqueInstance::SearchOtherInstance(HWND hWnd, LPARAM lParam) {
 	BOOL bResult = TRUE;
-	DWORD_PTR result;
 
 	UniqueInstance *ui = reinterpret_cast<UniqueInstance *>(lParam);
 
 	// First, avoid to send a message to ourself
-	if (hWnd != static_cast<HWND>(ui->stw->MainHWND())) {
+	if (hWnd != ui->stw->MainHWND()) {
 		// Send a message to the given window, to see if it will answer with
 		// the same message. If it does, it is a Gui window with
 		// openFilesHere set.
 		// We use a timeout to avoid being blocked by hung processes.
-		LRESULT found = ::SendMessageTimeout(hWnd,
-		                                     ui->identityMessage, 0, 0,
-		                                     SMTO_BLOCK | SMTO_ABORTIFHUNG, 200, &result);
+		DWORD_PTR result = 0;
+		const LRESULT found = ::SendMessageTimeout(hWnd,
+				      ui->identityMessage, 0, 0,
+				      SMTO_BLOCK | SMTO_ABORTIFHUNG, 200, &result);
 		if (found != 0 && result == static_cast<DWORD_PTR>(ui->identityMessage)) {
 			// Another Gui window found!
 			// We memorise its window handle

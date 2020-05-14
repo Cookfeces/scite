@@ -5,56 +5,51 @@
 // Copyright 2011 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
+#ifndef WORKER_H
+#define WORKER_H
+
 struct Worker {
 private:
-	Mutex *mutex;
-	volatile bool completed;
-	volatile bool cancelling;
-	volatile int jobSize;
-	volatile int jobProgress;
+	std::atomic_bool completed;
+	std::atomic_bool cancelling;
+	std::atomic_size_t jobSize;
+	std::atomic_size_t jobProgress;
 public:
-	Worker() : mutex(Mutex::Create()), completed(false), cancelling(false), jobSize(1), jobProgress(0) {
+	Worker() : completed(false), cancelling(false), jobSize(1), jobProgress(0) {
 	}
+	// Deleted so Worker objects can not be copied.
+	Worker(const Worker &) = delete;
+	Worker(Worker &&) = delete;
+	void operator=(const Worker &) = delete;
+	void operator=(Worker &&) = delete;
 	virtual ~Worker() {
-		delete mutex;
 	}
 	virtual void Execute() {}
-	bool FinishedJob() const {
-		Lock lock(mutex);
+	bool FinishedJob() const noexcept {
 		return completed;
 	}
-	void SetCompleted() {
-		Lock lock(mutex);
+	void SetCompleted() noexcept {
 		completed = true;
 	}
-	bool Cancelling() const {
-		Lock lock(mutex);
+	bool Cancelling() const noexcept {
 		return cancelling;
 	}
-	int SizeJob() const {
-		Lock lock(mutex);
+	size_t SizeJob() const noexcept {
 		return jobSize;
 	}
-	void SetSizeJob(int size) {
-		Lock lock(mutex);
+	void SetSizeJob(size_t size) noexcept {
 		jobSize = size;
 	}
-	int ProgressMade() const {
-		Lock lock(mutex);
+	size_t ProgressMade() const noexcept {
 		return jobProgress;
 	}
-	void IncrementProgress(int increment) {
-		Lock lock(mutex);
+	void IncrementProgress(size_t increment) noexcept {
 		jobProgress += increment;
 	}
 	virtual void Cancel() {
-		{
-			Lock lock(mutex);
-			cancelling = true;
-		}
+		cancelling = true;
 		// Wait for writing thread to finish
 		for (;;) {
-			Lock lock(mutex);
 			if (completed)
 				return;
 		}
@@ -64,3 +59,5 @@ public:
 struct WorkerListener {
 	virtual void PostOnMainThread(int cmd, Worker *pWorker) = 0;
 };
+
+#endif

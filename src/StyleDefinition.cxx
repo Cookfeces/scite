@@ -5,153 +5,169 @@
 // Copyright 2013 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cassert>
+#include <cstring>
 
+#include <stdexcept>
+#include <tuple>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <algorithm>
+#include <chrono>
 
-#include "Scintilla.h"
+#include "ScintillaTypes.h"
 
 #include "GUI.h"
 #include "StringHelpers.h"
 #include "StyleDefinition.h"
 
-StyleDefinition::StyleDefinition(const char *definition) :
-		sizeFractional(10.0), size(10), fore("#000000"), back("#FFFFFF"),
-		weight(SC_WEIGHT_NORMAL), italics(false), eolfilled(false), underlined(false),
-		caseForce(SC_CASE_MIXED),
-		visible(true), changeable(true),
-		specified(sdNone) {
+namespace SA = Scintilla::API;
+
+namespace {
+
+typedef std::tuple<std::string_view, std::string_view> ViewPair;
+
+// Split view around first separator returning the portion before and after the separator.
+// If the separator is not present then return whole view and an empty view.
+ViewPair ViewSplit(std::string_view view, char separator) noexcept {
+	const size_t sepPos = view.find_first_of(separator);
+	std::string_view first = view.substr(0, sepPos);
+	std::string_view second = sepPos == (std::string_view::npos) ? "" : view.substr(sepPos + 1);
+	return { first, second };
+}
+
+}
+
+StyleDefinition::StyleDefinition(std::string_view definition) :
+	sizeFractional(10.0), size(10), fore("#000000"), back("#FFFFFF"),
+	weight(SA::FontWeight::Normal), italics(false), eolfilled(false), underlined(false),
+	caseForce(SA::CaseVisible::Mixed),
+	visible(true), changeable(true),
+	specified(sdNone) {
 	ParseStyleDefinition(definition);
 }
 
-bool StyleDefinition::ParseStyleDefinition(const char *definition) {
-	if (definition == NULL || *definition == '\0') {
+bool StyleDefinition::ParseStyleDefinition(std::string_view definition) {
+	if (definition.empty()) {
 		return false;
 	}
-	std::vector<char> valHolder(definition, definition + strlen(definition)+1);
-	char *val = &valHolder[0];
-	char *opt = val;
-	while (opt) {
-		// Find attribute separator
-		char *cpComma = strchr(opt, ',');
-		if (cpComma) {
-			// If found, we terminate the current attribute (opt) string
-			*cpComma = '\0';
-		}
-		// Find attribute name/value separator
-		char *colon = strchr(opt, ':');
-		if (colon) {
-			// If found, we terminate the current attribute name and point on the value
-			*colon++ = '\0';
-		}
-		if (0 == strcmp(opt, "italics")) {
+	while (!definition.empty()) {
+		// Find attribute separator ',' and select front attribute
+		const ViewPair optionRest = ViewSplit(definition, ',');
+		const std::string_view option = std::get<0>(optionRest);
+		definition = std::get<1>(optionRest);
+		// Find value separator ':' and break into name and value
+		const auto [optionName, optionValue] = ViewSplit(option, ':');
+
+		if (optionName == "italics") {
 			specified = static_cast<flags>(specified | sdItalics);
 			italics = true;
 		}
-		if (0 == strcmp(opt, "notitalics")) {
+		if (optionName == "notitalics") {
 			specified = static_cast<flags>(specified | sdItalics);
 			italics = false;
 		}
-		if (0 == strcmp(opt, "bold")) {
+		if (optionName == "bold") {
 			specified = static_cast<flags>(specified | sdWeight);
-			weight = SC_WEIGHT_BOLD;
+			weight = SA::FontWeight::Bold;
 		}
-		if (0 == strcmp(opt, "notbold")) {
+		if (optionName == "notbold") {
 			specified = static_cast<flags>(specified | sdWeight);
-			weight = SC_WEIGHT_NORMAL;
+			weight = SA::FontWeight::Normal;
 		}
-		if ((0 == strcmp(opt, "weight")) && colon) {
+		if ((optionName == "weight") && !optionValue.empty()) {
 			specified = static_cast<flags>(specified | sdWeight);
-			weight = atoi(colon);
+			try {
+				weight = static_cast<SA::FontWeight>(std::stoi(std::string(optionValue)));
+			} catch (std::logic_error &) {
+				// Ignore bad values, either non-numeric or out of range numberic
+			}
 		}
-		if ((0 == strcmp(opt, "font")) && colon) {
+		if ((optionName == "font") && !optionValue.empty()) {
 			specified = static_cast<flags>(specified | sdFont);
-			font = colon;
+			font = optionValue;
 			std::replace(font.begin(), font.end(), '|', ',');
 		}
-		if ((0 == strcmp(opt, "fore")) && colon) {
+		if ((optionName == "fore") && !optionValue.empty()) {
 			specified = static_cast<flags>(specified | sdFore);
-			fore = colon;
+			fore = optionValue;
 		}
-		if ((0 == strcmp(opt, "back")) && colon) {
+		if ((optionName == "back") && !optionValue.empty()) {
 			specified = static_cast<flags>(specified | sdBack);
-			back = colon;
+			back = optionValue;
 		}
-		if ((0 == strcmp(opt, "size")) && colon) {
+		if ((optionName == "size") && !optionValue.empty()) {
 			specified = static_cast<flags>(specified | sdSize);
-			sizeFractional = static_cast<float>(atof(colon));
+			sizeFractional = std::stof(std::string(optionValue));
 			size = static_cast<int>(sizeFractional);
 		}
-		if (0 == strcmp(opt, "eolfilled")) {
+		if (optionName == "eolfilled") {
 			specified = static_cast<flags>(specified | sdEOLFilled);
 			eolfilled = true;
 		}
-		if (0 == strcmp(opt, "noteolfilled")) {
+		if (optionName == "noteolfilled") {
 			specified = static_cast<flags>(specified | sdEOLFilled);
 			eolfilled = false;
 		}
-		if (0 == strcmp(opt, "underlined")) {
+		if (optionName == "underlined") {
 			specified = static_cast<flags>(specified | sdUnderlined);
 			underlined = true;
 		}
-		if (0 == strcmp(opt, "notunderlined")) {
+		if (optionName == "notunderlined") {
 			specified = static_cast<flags>(specified | sdUnderlined);
 			underlined = false;
 		}
-		if (0 == strcmp(opt, "case")) {
+		if (optionName == "case") {
 			specified = static_cast<flags>(specified | sdCaseForce);
-			caseForce = SC_CASE_MIXED;
-			if (colon) {
-				if (*colon == 'u')
-					caseForce = SC_CASE_UPPER;
-				else if (*colon == 'l')
-					caseForce = SC_CASE_LOWER;
+			caseForce = SA::CaseVisible::Mixed;
+			if (!optionValue.empty()) {
+				if (optionValue.front() == 'u')
+					caseForce = SA::CaseVisible::Upper;
+				else if (optionValue.front() == 'l')
+					caseForce = SA::CaseVisible::Lower;
+				else if (optionValue.front() == 'c')
+					caseForce = SA::CaseVisible::Camel;
 			}
 		}
-		if (0 == strcmp(opt, "visible")) {
+		if (optionName == "visible") {
 			specified = static_cast<flags>(specified | sdVisible);
 			visible = true;
 		}
-		if (0 == strcmp(opt, "notvisible")) {
+		if (optionName == "notvisible") {
 			specified = static_cast<flags>(specified | sdVisible);
 			visible = false;
 		}
-		if (0 == strcmp(opt, "changeable")) {
+		if (optionName == "changeable") {
 			specified = static_cast<flags>(specified | sdChangeable);
 			changeable = true;
 		}
-		if (0 == strcmp(opt, "notchangeable")) {
+		if (optionName == "notchangeable") {
 			specified = static_cast<flags>(specified | sdChangeable);
 			changeable = false;
 		}
-		if (cpComma)
-			opt = cpComma + 1;
-		else
-			opt = 0;
 	}
 	return true;
 }
 
-long StyleDefinition::ForeAsLong() const {
+SA::Colour StyleDefinition::Fore() const {
 	return ColourFromString(fore);
 }
 
-long StyleDefinition::BackAsLong() const {
+SA::Colour StyleDefinition::Back() const {
 	return ColourFromString(back);
 }
 
-int StyleDefinition::FractionalSize() const {
-	return static_cast<int>(sizeFractional * SC_FONT_SIZE_MULTIPLIER);
+int StyleDefinition::FractionalSize() const noexcept {
+	return static_cast<int>(sizeFractional * SA::FontSizeMultiplier);
 }
 
-bool StyleDefinition::IsBold() const {
-	return weight > SC_WEIGHT_NORMAL;
+bool StyleDefinition::IsBold() const noexcept {
+	return weight > SA::FontWeight::Normal;
 }
 
-int IntFromHexDigit(int ch) {
+int IntFromHexDigit(int ch) noexcept {
 	if ((ch >= '0') && (ch <= '9')) {
 		return ch - '0';
 	} else if (ch >= 'A' && ch <= 'F') {
@@ -163,99 +179,101 @@ int IntFromHexDigit(int ch) {
 	}
 }
 
-int IntFromHexByte(const char *hexByte) {
+int IntFromHexByte(std::string_view hexByte) noexcept {
 	return IntFromHexDigit(hexByte[0]) * 16 + IntFromHexDigit(hexByte[1]);
 }
 
-Colour ColourFromString(const std::string &s) {
-	if (s.length()) {
-		int r = IntFromHexByte(s.c_str() + 1);
-		int g = IntFromHexByte(s.c_str() + 3);
-		int b = IntFromHexByte(s.c_str() + 5);
+SA::Colour ColourFromString(const std::string &s) {
+	if (s.length() >= 7) {
+		const int r = IntFromHexByte(&s[1]);
+		const int g = IntFromHexByte(&s[3]);
+		const int b = IntFromHexByte(&s[5]);
 		return ColourRGB(r, g, b);
 	} else {
 		return 0;
 	}
 }
 
-IndicatorDefinition::IndicatorDefinition(const char *definition) :
-	style(INDIC_PLAIN), colour(0), fillAlpha(30), outlineAlpha(50), under(false) {
+IndicatorDefinition::IndicatorDefinition(std::string_view definition) :
+	style(SA::IndicatorStyle::Plain), colour(0), fillAlpha(static_cast<SA::Alpha>(30)), outlineAlpha(static_cast<SA::Alpha>(50)), under(false) {
 	ParseIndicatorDefinition(definition);
 }
 
-bool IndicatorDefinition::ParseIndicatorDefinition(const char *definition) {
-	if (definition == NULL || *definition == '\0') {
+bool IndicatorDefinition::ParseIndicatorDefinition(std::string_view definition) {
+	if (definition.empty()) {
 		return false;
 	}
-	struct {
-		const char *name;
-		int value;
-	} indicStyleNames[] = {
-		{ "plain", INDIC_PLAIN },
-		{ "squiggle", INDIC_SQUIGGLE },
-		{ "tt", INDIC_TT },
-		{ "diagonal", INDIC_DIAGONAL },
-		{ "strike", INDIC_STRIKE },
-		{ "hidden", INDIC_HIDDEN },
-		{ "box", INDIC_BOX },
-		{ "roundbox", INDIC_ROUNDBOX },
-		{ "straightbox", INDIC_STRAIGHTBOX },
-		{ "dash", INDIC_DASH },
-		{ "dots", INDIC_DOTS },
-		{ "squigglelow", INDIC_SQUIGGLELOW },
-		{ "dotbox", INDIC_DOTBOX },
-		{ "squigglepixmap", INDIC_SQUIGGLEPIXMAP },
-		{ "compositionthick", INDIC_COMPOSITIONTHICK },
-		{ "compositionthin", INDIC_COMPOSITIONTHIN },
-		{ "fullbox", INDIC_FULLBOX },
+	struct NameValue {
+		std::string_view name;
+		SA::IndicatorStyle value;
+	};
+	const NameValue indicStyleNames[] = {
+		{ "plain", SA::IndicatorStyle::Plain },
+		{ "squiggle", SA::IndicatorStyle::Squiggle },
+		{ "tt", SA::IndicatorStyle::TT },
+		{ "diagonal", SA::IndicatorStyle::Diagonal },
+		{ "strike", SA::IndicatorStyle::Strike },
+		{ "hidden", SA::IndicatorStyle::Hidden },
+		{ "box", SA::IndicatorStyle::Box },
+		{ "roundbox", SA::IndicatorStyle::RoundBox },
+		{ "straightbox", SA::IndicatorStyle::StraightBox },
+		{ "dash", SA::IndicatorStyle::Dash },
+		{ "dots", SA::IndicatorStyle::Dots },
+		{ "squigglelow", SA::IndicatorStyle::SquiggleLow },
+		{ "dotbox", SA::IndicatorStyle::DotBox },
+		{ "squigglepixmap", SA::IndicatorStyle::SquigglePixmap },
+		{ "compositionthick", SA::IndicatorStyle::CompositionThick },
+		{ "compositionthin", SA::IndicatorStyle::CompositionThin },
+		{ "fullbox", SA::IndicatorStyle::FullBox },
+		{ "textfore", SA::IndicatorStyle::TextFore },
+		{ "point", SA::IndicatorStyle::Point },
+		{ "pointcharacter", SA::IndicatorStyle::PointCharacter },
+		{ "gradient", SA::IndicatorStyle::Gradient },
+		{ "gradientverticalcentred", SA::IndicatorStyle::GradientCentre },
 	};
 
 	std::string val(definition);
 	LowerCaseAZ(val);
-	char *opt = &val[0];
-	while (opt) {
-		// Find attribute separator
-		char *cpComma = strchr(opt, ',');
-		if (cpComma) {
-			// If found, we terminate the current attribute (opt) string
-			*cpComma = '\0';
-		}
-		// Find attribute name/value separator
-		char *colon = strchr(opt, ':');
-		if (colon) {
-			// If found, we terminate the current attribute name and point on the value
-			*colon++ = '\0';
-		}
-		if (colon && (0 == strcmp(opt, "style"))) {
-			bool found = false;
-			for (size_t i=0;i<ELEMENTS(indicStyleNames);i++) {
-				if ((indicStyleNames[i].name) && (0 == strcmp(colon, indicStyleNames[i].name))) {
-					style = indicStyleNames[i].value;
-					found = true;
+	std::string_view indicatorDefinition = val;
+	while (!indicatorDefinition.empty()) {
+		// Find attribute separator ',' and select front attribute
+		const ViewPair optionRest = ViewSplit(indicatorDefinition, ',');
+		const std::string_view option = std::get<0>(optionRest);
+		indicatorDefinition = std::get<1>(optionRest);
+		// Find value separator ':' and break into name and value
+		const auto [optionName, optionValue] = ViewSplit(option, ':');
+
+		try {
+			if (!optionValue.empty() && (optionName == "style")) {
+				bool found = false;
+				for (const NameValue &indicStyleName : indicStyleNames) {
+					if (optionValue == indicStyleName.name) {
+						style = indicStyleName.value;
+						found = true;
+					}
+				}
+				if (!found) {
+					style = static_cast<SA::IndicatorStyle>(std::stoi(std::string(optionValue)));
 				}
 			}
-			if (!found)
-				style = atoi(colon);
+			if (!optionValue.empty() && ((optionName == "colour") || (optionName == "color"))) {
+				colour = ColourFromString(std::string(optionValue));
+			}
+			if (!optionValue.empty() && (optionName == "fillalpha")) {
+				fillAlpha = static_cast<SA::Alpha>(std::stoi(std::string(optionValue)));
+			}
+			if (!optionValue.empty() && (optionName == "outlinealpha")) {
+				outlineAlpha = static_cast<SA::Alpha>(std::stoi(std::string(optionValue)));
+			}
+			if (optionName == "under") {
+				under = true;
+			}
+			if (optionName == "notunder") {
+				under = false;
+			}
+		} catch (std::logic_error &) {
+			// Ignore bad values, either non-numeric or out of range numberic
 		}
-		if (colon && ((0 == strcmp(opt, "colour")) || (0 == strcmp(opt, "color")))) {
-			colour = ColourFromString(std::string(colon));
-		}
-		if (colon && (0 == strcmp(opt, "fillalpha"))) {
-			fillAlpha = atoi(colon);
-		}
-		if (colon && (0 == strcmp(opt, "outlinealpha"))) {
-			outlineAlpha = atoi(colon);
-		}
-		if (0 == strcmp(opt, "under")) {
-			under = true;
-		}
-		if (0 == strcmp(opt, "notunder")) {
-			under = false;
-		}
-		if (cpComma)
-			opt = cpComma + 1;
-		else
-			opt = 0;
 	}
 	return true;
 }

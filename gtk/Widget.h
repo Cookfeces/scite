@@ -1,11 +1,14 @@
 // SciTE - Scintilla based Text Editor
-// Widget.h - code for manipulating  GTK+ widgets
+// Widget.h - code for manipulating  GTK widgets
 // Copyright 2010 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
-// Callback thunk class connects GTK+ signals to a simple command method.
+#ifndef WIDGET_H
+#define WIDGET_H
 
-// Callback thunk class connects GTK+ signals to an instance method.
+// Callback thunk class connects GTK signals to a simple command method.
+
+// Callback thunk class connects GTK signals to an instance method.
 template< class T, void (T::*method)() >
 class ObjectSignal {
 public:
@@ -80,7 +83,7 @@ private:
 public:
 	WCheckDraw();
 	~WCheckDraw();
-	void Create(const char **xpmImage, GUI::gui_string toolTip, GtkStyle *pStyle_);
+	void Create(const char **xpmImage, const GUI::gui_string &toolTip, GtkStyle *pStyle_);
 	bool Active();
 	void SetActive(bool active);
 	void Toggle();
@@ -104,7 +107,7 @@ public:
 		int xpadding=5, int ypadding=5);
 	void Label(GtkWidget *child);
 	void PackInto(GtkBox *box, gboolean expand=TRUE);
-	void Resize(int rows, int columns);
+	void Resize(int rows_, int columns_);
 	void NextLine();
 };
 
@@ -160,3 +163,4 @@ public:
 	static gint ButtonsPress(GtkWidget *widget, GdkEventButton *event, Strip *pstrip);
 };
 
+#endif

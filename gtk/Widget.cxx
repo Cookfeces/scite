@@ -1,5 +1,5 @@
 // SciTE - Scintilla based Text Editor
-// Widget.cxx - code for manipulating  GTK+ widgets
+// Widget.cxx - code for manipulating  GTK widgets
 // Copyright 2010 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
@@ -8,6 +8,7 @@
 
 #include <string>
 #include <vector>
+#include <chrono>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
@@ -18,7 +19,7 @@
 #include "StringHelpers.h"
 #include "Widget.h"
 
-// Key names are longer for GTK+ 3
+// Key names are longer for GTK 3
 #if GTK_CHECK_VERSION(3,0,0)
 #define GKEY_Escape GDK_KEY_Escape
 #define GKEY_Void GDK_KEY_VoidSymbol
@@ -150,8 +151,8 @@ void WComboBoxEntry::ClearList() {
 
 void WComboBoxEntry::FillFromMemory(const std::vector<std::string> &mem, bool useTop) {
 	ClearList();
-	for (size_t i = 0; i < mem.size(); i++) {
-		AppendText(mem[i].c_str());
+	for (const std::string &s : mem) {
+		AppendText(s.c_str());
 	}
 	if (useTop) {
 		gtk_entry_set_text(Entry(), mem[0].c_str());
@@ -207,7 +208,7 @@ static void GreyToAlpha(GdkPixbuf *ppb, GdkColor fore) {
 	}
 }
 
-void WCheckDraw::Create(const char **xpmImage, GUI::gui_string toolTip, GtkStyle *pStyle_) {
+void WCheckDraw::Create(const char **xpmImage, const GUI::gui_string &toolTip, GtkStyle *pStyle_) {
 	GtkWidget *button = gtk_toggle_button_new();
 	gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), FALSE);
@@ -346,7 +347,7 @@ void WTable::NextLine() {
 GUI::gui_char KeyFromLabel(GUI::gui_string label) {
 	if (!label.empty()) {
 		size_t posMnemonic = label.find('_');
-		return tolower(label[posMnemonic + 1]);
+		return MakeLowerCase(label[posMnemonic + 1]);
 	}
 	return 0;
 }

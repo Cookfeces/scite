@@ -1,11 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # RegenerateSource.py - implemented 2013 by Neil Hodgson neilh@scintilla.org
 # Released to the public domain.
 
 # Regenerate the SciTE source files that list all the lexers and all the
 # properties files.
 # Should be run whenever a new lexer is added or removed.
-# Requires Python 2.5 or later
+# Requires Python 3.6 or later
 # Most files are regenerated in place with templates stored in comments.
 # The VS .NET project file is generated into a different file as the
 # VS .NET environment will not retain comments when modifying the file.
@@ -13,7 +13,7 @@
 
 # Regenerates Scintilla files by calling LexGen.RegenerateAll
 
-import glob, os, sys
+import codecs, glob, os, sys
 
 srcRoot = "../.."
 
@@ -25,28 +25,51 @@ import LexGen
 import IFaceTableGen
 import commandsdoc
 
-def UpdateVersionNumbers(sci, root):
-    UpdateLineInFile(root + "scite/src/SciTE.h", "#define VERSION_SCITE",
-        "#define VERSION_SCITE \"" + sci.versionDotted + "\"")
-    UpdateLineInFile(root + "scite/src/SciTE.h", "#define VERSION_WORDS",
+sys.path.append("..")
+
+import win32.AppDepGen
+import gtk.AppDepGen
+
+neutralEncoding = "windows-1252"
+
+def UpdateVersionNumbers(sci, pathSciTE):
+    pathHeader = os.path.join(pathSciTE, "src", "SciTE.h")
+    UpdateLineInFile(pathHeader,
+        '#define VERSION_SCITE',
+        '#define VERSION_SCITE "' + sci.versionDotted + '"')
+    UpdateLineInFile(pathHeader,
+        "#define VERSION_WORDS",
         "#define VERSION_WORDS " + sci.versionCommad)
-    UpdateLineInFile(root + "scite/src/SciTE.h", "#define COPYRIGHT_DATES",
+    UpdateLineInFile(pathHeader,
+        '#define COPYRIGHT_DATES',
         '#define COPYRIGHT_DATES "December 1998-' + sci.myModified + '"')
-    UpdateLineInFile(root + "scite/src/SciTE.h", "#define COPYRIGHT_YEARS",
+    UpdateLineInFile(pathHeader,
+        '#define COPYRIGHT_YEARS',
         '#define COPYRIGHT_YEARS "1998-' + sci.yearModified + '"')
-    UpdateLineInFile(root + "scite/doc/SciTEDownload.html", "       Release",
+
+    pathDownload = os.path.join(pathSciTE, "doc", "SciTEDownload.html")
+    UpdateLineInFile(pathDownload,
+        "       Release",
         "       Release " + sci.versionDotted)
-    ReplaceREInFile(root + "scite/doc/SciTEDownload.html",
+    ReplaceREInFile(pathDownload,
         r"/www.scintilla.org/([a-zA-Z]+)\d\d\d",
         r"/www.scintilla.org/\g<1>" +  sci.version)
-    UpdateLineInFile(root + "scite/doc/SciTE.html",
+    ReplaceREInFile(pathDownload,
+        r"/www.scintilla.org/(wscite32_)\d\d\d",
+        r"/www.scintilla.org/\g<1>" +  sci.version)
+    ReplaceREInFile(pathDownload,
+        r"/www.scintilla.org/(Sc32_)\d\d\d",
+        r"/www.scintilla.org/\g<1>" +  sci.version)
+
+    pathMain = os.path.join(pathSciTE, "doc", "SciTE.html")
+    UpdateLineInFile(pathMain,
         '          <font color="#FFCC99" size="3"> Release version',
         '          <font color="#FFCC99" size="3"> Release version ' + \
         sci.versionDotted + '<br />')
-    UpdateLineInFile(root + "scite/doc/SciTE.html",
+    UpdateLineInFile(pathMain,
         '           Site last modified',
         '           Site last modified ' + sci.mdyModified + '</font>')
-    UpdateLineInFile(root + "scite/doc/SciTE.html",
+    UpdateLineInFile(pathMain,
         '    <meta name="Date.Modified"',
         '    <meta name="Date.Modified" content="' + sci.dateModified + '" />')
 
@@ -68,27 +91,27 @@ def OctalEscape(s):
                 result.append("\%o" % char)
     return ''.join(result)
 
-def UpdateEmbedded(root, propFiles):
+def UpdateEmbedded(pathSciTE, propFiles):
     propFilesSpecial = ["SciTEGlobal.properties", "abbrev.properties"]
     propFilesAll = propFilesSpecial + propFiles
     linesEmbedded = []
     for pf in propFilesAll:
-        fullPath = os.path.join(root, "scite", "src", pf)
-        with open(fullPath) as fi:
+        fullPath = os.path.join(pathSciTE, "src", pf)
+        with codecs.open(fullPath, "r", neutralEncoding) as fi:
             fileBase = pf.split(".")[0]
             if pf not in propFilesSpecial:
-                linesEmbedded.append("\nmodule " + fileBase + "\n")
+                linesEmbedded.append(os.linesep + "module " + fileBase + os.linesep)
             for line in fi:
                 if not line.startswith("#"):
                     linesEmbedded.append(line)
             if not linesEmbedded[-1].endswith("\n"):
-                linesEmbedded[-1] += "\n"
+                linesEmbedded[-1] += os.linesep
     textEmbedded = "".join(linesEmbedded)
-    pathEmbedded = os.path.join(root, "scite", "src", "Embedded.properties")
-    with open(pathEmbedded) as fileEmbedded:
+    pathEmbedded = os.path.join(pathSciTE, "src", "Embedded.properties")
+    with codecs.open(pathEmbedded, "r", neutralEncoding) as fileEmbedded:
         original = fileEmbedded.read()
     if textEmbedded != original:
-        with open(pathEmbedded, "w") as fileOutEmbedded:
+        with codecs.open(pathEmbedded, "w", neutralEncoding) as fileOutEmbedded:
             fileOutEmbedded.write(textEmbedded)
             print("Changed %s" % pathEmbedded)
 
@@ -96,6 +119,8 @@ def RegenerateAll():
     root="../../"
 
     sci = ScintillaData.ScintillaData(root + "scintilla/")
+
+    pathSciTE = os.path.join(root, "scite")
 
     # Generate HTML to document each property
     # This is done because tags can not be safely put inside comments in HTML
@@ -112,20 +137,23 @@ def RegenerateAll():
         "Embedded.properties",
         "SciTEGlobal.properties",
         "SciTE.properties"]
-    propFilePaths = glob.glob(root + "scite/src/*.properties")
+    propFilePaths = glob.glob(os.path.join(pathSciTE, "src", "*.properties"))
     ScintillaData.SortListInsensitive(propFilePaths)
     propFiles = [os.path.basename(f) for f in propFilePaths if os.path.basename(f) not in otherProps]
     ScintillaData.SortListInsensitive(propFiles)
 
-    UpdateEmbedded(root, propFiles)
-    Regenerate(root + "scite/win32/makefile", "#", propFiles)
-    Regenerate(root + "scite/win32/scite.mak", "#", propFiles)
-    Regenerate(root + "scite/src/SciTEProps.cxx", "//", sci.lexerProperties)
-    Regenerate(root + "scite/doc/SciTEDoc.html", "<!--", propertiesHTML)
+    UpdateEmbedded(pathSciTE, propFiles)
+    Regenerate(os.path.join(pathSciTE, "win32", "makefile"), "#", propFiles)
+    Regenerate(os.path.join(pathSciTE, "win32", "scite.mak"), "#", propFiles)
+    Regenerate(os.path.join(pathSciTE, "src", "SciTEProps.cxx"), "//", sci.lexerProperties)
+    Regenerate(os.path.join(pathSciTE, "doc", "SciTEDoc.html"), "<!--", propertiesHTML)
     credits = [OctalEscape(c.encode("utf-8")) for c in sci.credits]
-    Regenerate(root + "scite/src/Credits.cxx", "//", credits)
+    Regenerate(os.path.join(pathSciTE, "src", "Credits.cxx"), "//", credits)
 
-    UpdateVersionNumbers(sci, root)
+    win32.AppDepGen.Generate()
+    gtk.AppDepGen.Generate()
+
+    UpdateVersionNumbers(sci, pathSciTE)
 
 LexGen.RegenerateAll("../../scintilla/")
 RegenerateAll()

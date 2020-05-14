@@ -34,40 +34,51 @@
 // The License.txt file describes the conditions under which this software may be distributed.
 
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <unistd.h>
-#include <string.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
-#include <set>
 #include <map>
+#include <set>
+#include <memory>
+#include <chrono>
+#include <atomic>
+#include <mutex>
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <gtk/gtk.h>
 
-#include "Scintilla.h"
 #include "ILexer.h"
 
+#include "ScintillaTypes.h"
+#include "ScintillaMessages.h"
+#include "ScintillaCall.h"
+
+#include "Scintilla.h"
+
 #include "GUI.h"
+#include "ScintillaWindow.h"
 #include "StringList.h"
 #include "StringHelpers.h"
 #include "FilePath.h"
 #include "StyleDefinition.h"
 #include "PropSetFile.h"
 #include "Extender.h"
-#include "DirectorExtension.h"
 #include "SciTE.h"
-#include "Mutex.h"
 #include "JobQueue.h"
 #include "Cookie.h"
 #include "Worker.h"
 #include "MatchMarker.h"
 #include "SciTEBase.h"
+#include "DirectorExtension.h"
 
 static int fdDirector = 0;
 static int fdCorrespondent = 0;
@@ -78,7 +89,9 @@ static bool shuttingDown = false;
 // the number of notify connections this SciTE instance will handle.
 const int MAX_PIPES = 20;
 
-static char requestPipeName[MAX_PATH];
+#define TMP_FILENAME_LENGTH 1024
+
+static char requestPipeName[TMP_FILENAME_LENGTH];
 
 //#define IF_DEBUG(x) x;
 #define IF_DEBUG(x)
@@ -104,20 +117,19 @@ static bool SendPipeAvailable() {
 }
 
 static void AddSendPipe(int fd, const char *name) {
-	PipeEntry entry;
-	entry.fd = fd;
-	if (name)
-		entry.name = strdup(name);
-	else
-		entry.name = NULL;
 	if (SendPipeAvailable()) {
-		s_send_pipes[s_send_cnt++] = entry;
+		PipeEntry &entry = s_send_pipes[s_send_cnt++];
+		entry.fd = fd;
+		if (name)
+			entry.name = strdup(name);
+		else
+			entry.name = NULL;
 	}
 }
 
 static void RemoveSendPipes() {
 	for (int i = 0; i < s_send_cnt; ++i) {
-		PipeEntry entry = s_send_pipes[i];
+		PipeEntry &entry = s_send_pipes[i];
 		close(entry.fd);
 		if (entry.name)
 			remove(entry.name);
@@ -320,7 +332,7 @@ bool DirectorExtension::OnSavePointLeft() {
 	return false;
 }
 
-bool DirectorExtension::OnStyle(unsigned int, int, int, StyleWriter *) {
+bool DirectorExtension::OnStyle(SA::Position, SA::Position, int, StyleWriter *) {
 	return false;
 }
 
@@ -383,9 +395,9 @@ void DirectorExtension::HandleStringMessage(const char *message) {
 			// pid and a sequence count.
 			// There is an (artificial) limit on the number of notify pipes;
 			// if there are no more slots, then the returned pipename is '*'
-			char pipeName[MAX_PATH];
+			char pipeName[TMP_FILENAME_LENGTH];
 			if (! SendPipeAvailable()) {
-				strcpy(pipeName,"*");
+				StringCopy(pipeName,"*");
 			} else {
 				sprintf(pipeName,"%s/SciTE.%d.%d.out", g_get_tmp_dir(), getpid(), kount++);
 			}

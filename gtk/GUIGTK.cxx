@@ -9,6 +9,8 @@
 #include <time.h>
 
 #include <string>
+#include <chrono>
+#include <sstream>
 
 #include <gtk/gtk.h>
 
@@ -38,6 +40,25 @@ gui_string StringFromInteger(long i) {
 	char number[32];
 	sprintf(number, "%0ld", i);
 	return gui_string(number);
+}
+
+gui_string StringFromLongLong(long long i) {
+	try {
+		std::ostringstream strstrm;
+		strstrm << i;
+		return StringFromUTF8(strstrm.str());
+	} catch (std::exception &) {
+		// Exceptions not enabled on stream but still causes diagnostic in Coverity.
+		// Simply swallow the failure and return the default value.
+	}
+	return gui_string();
+}
+
+std::string LowerCaseUTF8(std::string_view sv) {
+	gchar *lower = g_utf8_strdown(sv.data(), sv.length());
+	const std::string sLower(lower);
+	g_free(lower);
+	return sLower;
 }
 
 static GtkWidget *PWidget(WindowID wid) {
@@ -80,7 +101,7 @@ void Window::SetPosition(Rectangle rc) {
 }
 
 Rectangle Window::GetClientPosition() {
-	// On GTK+, the client position is the window position
+	// On GTK, the client position is the window position
 	return GetPosition();
 }
 
@@ -111,17 +132,23 @@ void Menu::Destroy() {
 	mid = 0;
 }
 
+#if !GTK_CHECK_VERSION(3,22,0)
 static void  MenuPositionFunc(GtkMenu *, gint *x, gint *y, gboolean *, gpointer userData) {
 	sptr_t intFromPointer = GPOINTER_TO_INT(userData);
 	*x = intFromPointer & 0xffff;
 	*y = intFromPointer >> 16;
 }
+#endif
 
-void Menu::Show(Point pt, Window &) {
-	int screenHeight = gdk_screen_height();
-	int screenWidth = gdk_screen_width();
+void Menu::Show(Point pt G_GNUC_UNUSED, Window &) {
 	GtkMenu *widget = static_cast<GtkMenu *>(mid);
 	gtk_widget_show_all(GTK_WIDGET(widget));
+#if GTK_CHECK_VERSION(3,22,0)
+	// Rely on GTK to do the right thing with positioning
+	gtk_menu_popup_at_pointer(widget, NULL);
+#else
+	int screenHeight = gdk_screen_height();
+	int screenWidth = gdk_screen_width();
 	GtkRequisition requisition;
 #if GTK_CHECK_VERSION(3,0,0)
 	gtk_widget_get_preferred_size(GTK_WIDGET(widget), NULL, &requisition);
@@ -137,31 +164,10 @@ void Menu::Show(Point pt, Window &) {
 	gtk_menu_popup(widget, NULL, NULL, MenuPositionFunc,
 		GINT_TO_POINTER((pt.y << 16) | pt.x), 0,
 		gtk_get_current_event_time());
+#endif
 }
 
-ElapsedTime::ElapsedTime() {
-	GTimeVal curTime;
-	g_get_current_time(&curTime);
-	bigBit = curTime.tv_sec;
-	littleBit = curTime.tv_usec;
-}
-
-double ElapsedTime::Duration(bool reset) {
-	GTimeVal curTime;
-	g_get_current_time(&curTime);
-	long endBigBit = curTime.tv_sec;
-	long endLittleBit = curTime.tv_usec;
-	double result = 1000000.0 * (endBigBit - bigBit);
-	result += endLittleBit - littleBit;
-	result /= 1000000.0;
-	if (reset) {
-		bigBit = endBigBit;
-		littleBit = endLittleBit;
-	}
-	return result;
-}
-
-sptr_t ScintillaWindow::Send(unsigned int msg, uptr_t wParam, sptr_t lParam) {
+sptr_t ScintillaPrimitive::Send(unsigned int msg, uptr_t wParam, sptr_t lParam) {
 	return scintilla_send_message(SCINTILLA(GetID()), msg, wParam, lParam);
 }
 
@@ -182,6 +188,10 @@ bool IsDBCSLeadByte(int codePage, char ch) {
 		// Korean EUC-KR may be code page 949.
 	}
 	return false;
+}
+
+void SleepMilliseconds(int sleepTime) {
+	g_usleep(sleepTime * 1000);
 }
 
 }

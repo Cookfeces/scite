@@ -5,30 +5,29 @@
 // Copyright 1998-2007 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <time.h>
-#include <locale.h>
-#include <assert.h>
+#include <cstddef>
+#include <cstdlib>
+#include <cassert>
+#include <cstring>
+#include <cstdio>
+#include <ctime>
 
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <set>
 #include <map>
-#include <sstream>
+#include <set>
 #include <algorithm>
+#include <chrono>
+#include <sstream>
+
+#include <fcntl.h>
 
 #if defined(GTK)
 
 #include <unistd.h>
 
 #endif
-
-#include "Scintilla.h"
 
 #include "GUI.h"
 
@@ -39,11 +38,7 @@
 // The comparison and case changing functions here assume ASCII
 // or extended ASCII such as the normal Windows code page.
 
-inline bool IsASpace(unsigned int ch) {
-    return (ch == ' ') || ((ch >= 0x09) && (ch <= 0x0d));
-}
-
-static std::set<std::string> FilterFromString(std::string values) {
+static std::set<std::string> FilterFromString(const std::string &values) {
 	std::vector<std::string> vsFilter = StringSplit(values, ' ');
 	std::set<std::string> fs;
 	for (std::vector<std::string>::const_iterator it=vsFilter.begin(); it != vsFilter.end(); ++it) {
@@ -53,12 +48,12 @@ static std::set<std::string> FilterFromString(std::string values) {
 	return fs;
 }
 
-void ImportFilter::SetFilter(std::string sExcludes, std::string sIncludes) {
+void ImportFilter::SetFilter(const std::string &sExcludes, const std::string &sIncludes) {
 	excludes = FilterFromString(sExcludes);
 	includes = FilterFromString(sIncludes);
 }
 
-bool ImportFilter::IsValid(std::string name) const {
+bool ImportFilter::IsValid(const std::string &name) const {
 	if (!includes.empty()) {
 		return includes.count(name) > 0;
 	} else {
@@ -68,14 +63,14 @@ bool ImportFilter::IsValid(std::string name) const {
 
 bool PropSetFile::caseSensitiveFilenames = false;
 
-PropSetFile::PropSetFile(bool lowerKeys_) : lowerKeys(lowerKeys_), superPS(0) {
+PropSetFile::PropSetFile(bool lowerKeys_) : lowerKeys(lowerKeys_), superPS(nullptr) {
 }
 
 PropSetFile::PropSetFile(const PropSetFile &copy) : lowerKeys(copy.lowerKeys), props(copy.props), superPS(copy.superPS) {
 }
 
 PropSetFile::~PropSetFile() {
-	superPS = 0;
+	superPS = nullptr;
 	Clear();
 }
 
@@ -88,17 +83,13 @@ PropSetFile &PropSetFile::operator=(const PropSetFile &assign) {
 	return *this;
 }
 
-void PropSetFile::Set(const char *key, const char *val, ptrdiff_t lenKey, ptrdiff_t lenVal) {
-	if (!*key)	// Empty keys are not supported
+void PropSetFile::Set(std::string_view key, std::string_view val) {
+	if (key.empty())	// Empty keys are not supported
 		return;
-	if (lenKey == -1)
-		lenKey = strlen(key);
-	if (lenVal == -1)
-		lenVal = strlen(val);
-	props[std::string(key, lenKey)] = std::string(val, lenVal);
+	props[std::string(key)] = std::string(val);
 }
 
-void PropSetFile::Set(const char *keyVal) {
+void PropSetFile::SetLine(const char *keyVal) {
 	while (IsASpace(*keyVal))
 		keyVal++;
 	const char *endVal = keyVal;
@@ -112,18 +103,16 @@ void PropSetFile::Set(const char *keyVal) {
 		}
 		const ptrdiff_t lenVal = endVal - eqAt - 1;
 		const ptrdiff_t lenKey = pKeyEnd - keyVal + 1;
-		Set(keyVal, eqAt + 1, lenKey, lenVal);
+		Set(std::string_view(keyVal, lenKey), std::string_view(eqAt + 1, lenVal));
 	} else if (*keyVal) {	// No '=' so assume '=1'
-		Set(keyVal, "1", endVal-keyVal, 1);
+		Set(keyVal, "1");
 	}
 }
 
-void PropSetFile::Unset(const char *key, int lenKey) {
-	if (!*key)	// Empty keys are not supported
+void PropSetFile::Unset(std::string_view key) {
+	if (key.empty())	// Empty keys are not supported
 		return;
-	if (lenKey == -1)
-		lenKey = static_cast<int>(strlen(key));
-	mapss::iterator keyPos = props.find(std::string(key, lenKey));
+	mapss::iterator keyPos = props.find(std::string(key));
 	if (keyPos != props.end())
 		props.erase(keyPos);
 }
@@ -158,7 +147,7 @@ std::string PropSetFile::GetString(const char *key) const {
 
 static std::string ShellEscape(const char *toEscape) {
 	std::string str(toEscape);
-	for (int i = static_cast<int>(str.length()-1); i >= 0; --i) {
+	for (ptrdiff_t i = str.length()-1; i >= 0; --i) {
 		switch (str[i]) {
 		case ' ':
 		case '|':
@@ -241,11 +230,11 @@ std::string PropSetFile::Evaluate(const char *key) const {
 // for that, through a recursive function and a simple chain of pointers.
 
 struct VarChain {
-	VarChain(const char*var_=NULL, const VarChain *link_=NULL): var(var_), link(link_) {}
+	VarChain(const char *var_=nullptr, const VarChain *link_=nullptr) noexcept : var(var_), link(link_) {}
 
 	bool contains(const char *testVar) const {
 		return (var && (0 == strcmp(var, testVar)))
-			|| (link && link->contains(testVar));
+		       || (link && link->contains(testVar));
 	}
 
 	const char *var;
@@ -255,7 +244,7 @@ struct VarChain {
 static int ExpandAllInPlace(const PropSetFile &props, std::string &withVars, int maxExpands, const VarChain &blankVars = VarChain()) {
 	size_t varStart = withVars.find("$(");
 	while ((varStart != std::string::npos) && (maxExpands > 0)) {
-		size_t varEnd = withVars.find(")", varStart+2);
+		const size_t varEnd = withVars.find(')', varStart+2);
 		if (varEnd == std::string::npos) {
 			break;
 		}
@@ -301,20 +290,25 @@ std::string PropSetFile::Expand(const std::string &withVars, int maxExpands) con
 }
 
 int PropSetFile::GetInt(const char *key, int defaultValue) const {
-	std::string val = GetExpandedString(key);
-	if (val.length())
-		return atoi(val.c_str());
-	return defaultValue;
+	return IntegerFromString(GetExpandedString(key), defaultValue);
 }
 
-void PropSetFile::Clear() {
+intptr_t PropSetFile::GetInteger(const char *key, intptr_t defaultValue) const {
+	return IntPtrFromString(GetExpandedString(key), defaultValue);
+}
+
+long long PropSetFile::GetLongLong(const char *key, long long defaultValue) const {
+	return LongLongFromString(GetExpandedString(key), defaultValue);
+}
+
+void PropSetFile::Clear() noexcept {
 	props.clear();
 }
 
 /**
  * Get a line of input. If end of line escaped with '\\' then continue reading.
  */
-static bool GetFullLine(const char *&fpc, size_t &lenData, char *s, size_t len) {
+static bool GetFullLine(const char *&fpc, size_t &lenData, char *s, size_t len) noexcept {
 	bool continuation = true;
 	s[0] = '\0';
 	while ((len > 1) && lenData > 0) {
@@ -347,11 +341,11 @@ static bool GetFullLine(const char *&fpc, size_t &lenData, char *s, size_t len) 
 	return false;
 }
 
-static bool IsSpaceOrTab(char ch) {
+static bool IsSpaceOrTab(char ch) noexcept {
 	return (ch == ' ') || (ch == '\t');
 }
 
-static bool IsCommentLine(const char *line) {
+static bool IsCommentLine(const char *line) noexcept {
 	while (IsSpaceOrTab(*line)) ++line;
 	return (*line == '#');
 }
@@ -363,18 +357,19 @@ static bool GenericPropertiesFile(const FilePath &filename) {
 	return name.find("SciTE") != std::string::npos;
 }
 
-void PropSetFile::Import(FilePath filename, FilePath directoryForImports, const ImportFilter &filter, std::vector<FilePath> *imports, size_t depth) {
+void PropSetFile::Import(const FilePath &filename, const FilePath &directoryForImports, const ImportFilter &filter,
+			 FilePathSet *imports, size_t depth) {
 	if (depth > 20)	// Possibly recursive import so give up to avoid crash
 		return;
 	if (Read(filename, directoryForImports, filter, imports, depth)) {
-		if (imports && (std::find(imports->begin(),imports->end(), filename) == imports->end())) {
+		if (imports && (std::find(imports->begin(), imports->end(), filename) == imports->end())) {
 			imports->push_back(filename);
 		}
 	}
 }
 
-PropSetFile::ReadLineState PropSetFile::ReadLine(const char *lineBuffer, ReadLineState rls, FilePath directoryForImports,
-	const ImportFilter &filter, std::vector<FilePath> *imports, size_t depth) {
+PropSetFile::ReadLineState PropSetFile::ReadLine(const char *lineBuffer, ReadLineState rls, const FilePath &directoryForImports,
+		const ImportFilter &filter, FilePathSet *imports, size_t depth) {
 	//UnSlash(lineBuffer);
 	if ((rls == rlConditionFalse) && (!IsSpaceOrTab(lineBuffer[0])))    // If clause ends with first non-indented line
 		rls = rlActive;
@@ -385,6 +380,7 @@ PropSetFile::ReadLineState PropSetFile::ReadLine(const char *lineBuffer, ReadLin
 		} else {
 			rls = rlExcludedModule;
 		}
+		return rls;
 	}
 	if (rls != rlActive) {
 		return rls;
@@ -392,35 +388,36 @@ PropSetFile::ReadLineState PropSetFile::ReadLine(const char *lineBuffer, ReadLin
 	if (isprefix(lineBuffer, "if ")) {
 		const char *expr = lineBuffer + strlen("if") + 1;
 		rls = (GetInt(expr) != 0) ? rlActive : rlConditionFalse;
-	} else if (isprefix(lineBuffer, "import ") && directoryForImports.IsSet()) {
-		std::string importName(lineBuffer + strlen("import") + 1);
-		if (importName == "*") {
-			// Import all .properties files in this directory except for system properties
-			FilePathSet directories;
-			FilePathSet files;
-			directoryForImports.List(directories, files);
-			for (size_t i = 0; i < files.size(); i ++) {
-				FilePath fpFile = files[i];
-				if (IsPropertiesFile(fpFile) &&
-					!GenericPropertiesFile(fpFile) &&
-					filter.IsValid(fpFile.BaseName().AsUTF8())) {
-					FilePath importPath(directoryForImports, fpFile);
-					Import(importPath, directoryForImports, filter, imports, depth+1);
+	} else if (isprefix(lineBuffer, "import ")) {
+		if (directoryForImports.IsSet()) {
+			std::string importName(lineBuffer + strlen("import") + 1);
+			if (importName == "*") {
+				// Import all .properties files in this directory except for system properties
+				FilePathSet directories;
+				FilePathSet files;
+				directoryForImports.List(directories, files);
+				for (const FilePath &fpFile : files) {
+					if (IsPropertiesFile(fpFile) &&
+							!GenericPropertiesFile(fpFile) &&
+							filter.IsValid(fpFile.BaseName().AsUTF8())) {
+						FilePath importPath(directoryForImports, fpFile);
+						Import(importPath, directoryForImports, filter, imports, depth + 1);
+					}
 				}
+			} else if (filter.IsValid(importName)) {
+				importName += ".properties";
+				FilePath importPath(directoryForImports, FilePath(GUI::StringFromUTF8(importName)));
+				Import(importPath, directoryForImports, filter, imports, depth + 1);
 			}
-		} else if (filter.IsValid(importName)) {
-			importName += ".properties";
-			FilePath importPath(directoryForImports, FilePath(GUI::StringFromUTF8(importName)));
-			Import(importPath, directoryForImports, filter, imports, depth+1);
 		}
 	} else if (!IsCommentLine(lineBuffer)) {
-		Set(lineBuffer);
+		SetLine(lineBuffer);
 	}
 	return rls;
 }
 
-void PropSetFile::ReadFromMemory(const char *data, size_t len, FilePath directoryForImports,
-                                 const ImportFilter &filter, std::vector<FilePath> *imports, size_t depth) {
+void PropSetFile::ReadFromMemory(const char *data, size_t len, const FilePath &directoryForImports,
+				 const ImportFilter &filter, FilePathSet *imports, size_t depth) {
 	const char *pd = data;
 	std::vector<char> lineBuffer(len+1);	// +1 for NUL
 	ReadLineState rls = rlActive;
@@ -437,36 +434,32 @@ void PropSetFile::ReadFromMemory(const char *data, size_t len, FilePath director
 	}
 }
 
-bool PropSetFile::Read(FilePath filename, FilePath directoryForImports,
-                       const ImportFilter &filter, std::vector<FilePath> *imports, size_t depth) {
-	std::vector<char> propsData = filename.Read();
-	size_t lenFile = propsData.size();
+bool PropSetFile::Read(const FilePath &filename, const FilePath &directoryForImports,
+		       const ImportFilter &filter, FilePathSet *imports, size_t depth) {
+	const std::string propsData = filename.Read();
+	const size_t lenFile = propsData.size();
 	if (lenFile > 0) {
-		const char *data = &propsData[0];
-		if ((lenFile >= 3) && (memcmp(data, "\xef\xbb\xbf", 3) == 0)) {
-			data += 3;
-			lenFile -= 3;
+		std::string_view data(propsData.c_str(), lenFile);
+		const std::string_view svUtf8BOM(UTF8BOM);
+		if (StartsWith(data, svUtf8BOM)) {
+			data.remove_prefix(svUtf8BOM.length());
 		}
-		ReadFromMemory(data, lenFile, directoryForImports, filter, imports, depth);
+		ReadFromMemory(data.data(), data.length(), directoryForImports, filter, imports, depth);
 		return true;
 	}
 	return false;
 }
 
-void PropSetFile::SetInteger(const char *key, int i) {
-	char tmp[32];
-	sprintf(tmp, "%d", static_cast<int>(i));
-	Set(key, tmp);
-}
+namespace {
 
-static bool StringEqual(const char *a, const char *b, size_t len, bool caseSensitive) {
+bool StringEqual(std::string_view a, std::string_view b, bool caseSensitive) noexcept {
 	if (caseSensitive) {
-		for (size_t i = 0; i < len; i++) {
-			if (a[i] != b[i])
-				return false;
-		}
+		return a == b;
 	} else {
-		for (size_t i = 0; i < len; i++) {
+		if (a.length() != b.length()) {
+			return false;
+		}
+		for (size_t i = 0; i < a.length(); i++) {
 			if (MakeUpperCase(a[i]) != MakeUpperCase(b[i]))
 				return false;
 		}
@@ -474,67 +467,79 @@ static bool StringEqual(const char *a, const char *b, size_t len, bool caseSensi
 	return true;
 }
 
-// Match file names to patterns allowing for a '*' suffix or prefix.
-static bool MatchWild(const char *pattern, size_t lenPattern, const char *fileName, bool caseSensitive) {
-	size_t lenFileName = strlen(fileName);
-	if (lenFileName == lenPattern) {
-		if (StringEqual(pattern, fileName, lenFileName, caseSensitive)) {
+// Match file names to patterns allowing for '*' and '?'.
+
+bool MatchWild(std::string_view pattern, std::string_view text, bool caseSensitive) {
+	if (StringEqual(pattern, text, caseSensitive)) {
+		return true;
+	} else if (pattern.empty()) {
+		return false;
+	} else if (pattern.front() == '*') {
+		pattern.remove_prefix(1);
+		if (pattern.empty()) {
 			return true;
 		}
-	}
-	if (lenFileName >= lenPattern-1) {
-		if (pattern[0] == '*') {
-			// Matching suffixes
-			return StringEqual(pattern+1, fileName + lenFileName - (lenPattern-1), lenPattern-1, caseSensitive);
-		} else if (pattern[lenPattern-1] == '*') {
-			// Matching prefixes
-			return StringEqual(pattern, fileName, lenPattern-1, caseSensitive);
+		while (!text.empty()) {
+			if (MatchWild(pattern, text, caseSensitive)) {
+				return true;
+			}
+			text.remove_prefix(1);
 		}
+	} else if (text.empty()) {
+		return false;
+	} else if (pattern.front() == '?') {
+		pattern.remove_prefix(1);
+		text.remove_prefix(1);
+		return MatchWild(pattern, text, caseSensitive);
+	} else if (caseSensitive && pattern.front() == text.front()) {
+		pattern.remove_prefix(1);
+		text.remove_prefix(1);
+		return MatchWild(pattern, text, caseSensitive);
+	} else if (!caseSensitive && MakeUpperCase(pattern.front()) == MakeUpperCase(text.front())) {
+		pattern.remove_prefix(1);
+		text.remove_prefix(1);
+		return MatchWild(pattern, text, caseSensitive);
 	}
 	return false;
 }
 
-static bool startswith(const std::string &s, const char *keybase) {
+bool startswith(const std::string &s, const char *keybase) noexcept {
 	return isprefix(s.c_str(), keybase);
+}
+
 }
 
 std::string PropSetFile::GetWildUsingStart(const PropSetFile &psStart, const char *keybase, const char *filename) {
 	const std::string sKeybase(keybase);
-	const size_t lenKeybase = strlen(keybase);
 	const PropSetFile *psf = this;
 	while (psf) {
 		mapss::const_iterator it = psf->props.lower_bound(sKeybase);
-		while ((it != psf->props.end()) && startswith(it->first, keybase)) {
-			const char *orgkeyfile = it->first.c_str() + lenKeybase;
-			const char *keyptr = NULL;
-			std::string key;
+		while ((it != psf->props.end()) && startswith(it->first, sKeybase.c_str())) {
+			const std::string_view orgkeyfile = it->first.c_str() + sKeybase.length();
+			std::string key;	// keyFile may point into key so key lifetime must cover keyFile
+			std::string_view keyFile = orgkeyfile;
 
-			if (strncmp(orgkeyfile, "$(", 2) == 0) {
-				const char *cpendvar = strchr(orgkeyfile, ')');
-				if (cpendvar) {
-					std::string var(orgkeyfile, 2, cpendvar - orgkeyfile - 2);
+			if (orgkeyfile.find("$(") == 0) {
+				// $(X) is a variable so extract X and find its value
+				const size_t endVar = orgkeyfile.find_first_of(')');
+				if (endVar != std::string_view::npos) {
+					const std::string var(orgkeyfile.substr(2, endVar-2));
 					key = psStart.GetExpandedString(var.c_str());
-					keyptr = key.c_str();
+					keyFile = key;
 				}
 			}
-			const char *keyfile = keyptr;
 
-			if (keyfile == NULL)
-				keyfile = orgkeyfile;
-
-			for (;;) {
-				const char *del = strchr(keyfile, ';');
-				if (del == NULL)
-					del = keyfile + strlen(keyfile);
-				if (MatchWild(keyfile, del - keyfile, filename, caseSensitiveFilenames)) {
+			while (!keyFile.empty()) {
+				const size_t sepPos = keyFile.find_first_of(';');
+				const std::string_view pattern = keyFile.substr(0, sepPos);
+				if (MatchWild(pattern, filename, caseSensitiveFilenames)) {
 					return it->second;
 				}
-				if (*del == '\0')
-					break;
-				keyfile = del + 1;
+				// Move to next
+				keyFile = (sepPos == std::string_view::npos) ? "" : keyFile.substr(sepPos + 1);
 			}
 
-			if (0 == strcmp(it->first.c_str(), keybase)) {
+			if (it->first == sKeybase) {
 				return it->second;
 			}
 			++it;
@@ -557,7 +562,7 @@ std::string PropSetFile::GetNewExpandString(const char *keybase, const char *fil
 	size_t varStart = withVars.find("$(");
 	int maxExpands = 1000;	// Avoid infinite expansion of recursive definitions
 	while ((varStart != std::string::npos) && (maxExpands > 0)) {
-		size_t varEnd = withVars.find(")", varStart+2);
+		const size_t varEnd = withVars.find(')', varStart+2);
 		if (varEnd == std::string::npos) {
 			break;
 		}
@@ -604,7 +609,7 @@ bool PropSetFile::GetNext(const char *&key, const char *&val) {
 
 bool IsPropertiesFile(const FilePath &filename) {
 	FilePath ext = filename.Extension();
-	if (EqualCaseInsensitive(ext.AsUTF8().c_str(), PROPERTIES_EXTENSION + 1))
+	if (EqualCaseInsensitive(ext.AsUTF8().c_str(), extensionProperties + 1))
 		return true;
 	return false;
 }

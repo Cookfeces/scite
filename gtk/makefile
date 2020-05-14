@@ -4,31 +4,37 @@
 # This makefile assumes GCC 4.x is used and changes will be needed to use other compilers.
 # GNU make does not like \r\n line endings so should be saved to CVS in binary form.
 
+.PHONY: all clean analyze depend install uninstall
+
 srcdir ?= .
+SCINTILLA_DIR ?= $(srcdir)/../../scintilla
 
 .SUFFIXES: .cxx .o .h .a .c
+
+WARNINGS += -Wall -pedantic -Wextra
+
 ifdef CLANG
 # Can choose aspect to sanitize: address and undefined can simply change SANITIZE but for
 # thread also need to create Position Independent Executable -> search online documentation
 SANITIZE = address
 #SANITIZE = undefined
-CXX = clang++ -fsanitize=$(SANITIZE) -Wno-deprecated-register
-CC = clang -fsanitize=$(SANITIZE) -Wno-empty-body
+CXX = clang++
+CC = clang
+BASE_FLAGS += -fsanitize=$(SANITIZE)
+WARNINGS += -Wno-deprecated-register
+WARNINGS += -Wno-empty-body
 else
-MISLEADING=-Wno-misleading-indentation
+WARNINGS += -Wno-misleading-indentation
 endif
 
-ifdef GTK3
-GTKVERSION=gtk+-3.0
-else
-GTKVERSION=gtk+-2.0
-endif
+GTK_VERSION = $(if $(GTK3),gtk+-3.0,gtk+-2.0)
+
+PYTHON = $(if $(windir),pyw,python3)
 
 # For the Gnome desktop stuff to work, prefix must point to where Gnome thinks it is.
-CONFIGFLAGS:=$(shell pkg-config --cflags $(GTKVERSION))
-CONFIGLIB:=$(shell pkg-config --libs $(GTKVERSION) gthread-2.0 gmodule-no-export-2.0)
-CONFIGTHREADS:=
-gnomeprefix:=$(shell pkg-config --variable=prefix $(GTKVERSION) 2>/dev/null)
+CONFIGFLAGS:=$(shell pkg-config --cflags $(GTK_VERSION))
+CONFIGLIB:=$(shell pkg-config --libs $(GTK_VERSION) gthread-2.0 gmodule-no-export-2.0)
+gnomeprefix:=$(shell pkg-config --variable=prefix $(GTK_VERSION) 2>/dev/null)
 ifndef prefix
 ifdef gnomeprefix
   prefix=$(gnomeprefix)
@@ -47,80 +53,97 @@ PROG	= $(srcdir)/../bin/SciTE
 
 all: $(PROG)
 
-vpath %.h $(srcdir) $(srcdir)/../src $(srcdir)/../../scintilla/include
+vpath %.h $(srcdir) $(srcdir)/../src $(SCINTILLA_DIR)/include
 vpath %.cxx $(srcdir) $(srcdir)/../src
 
-INCLUDEDIRS=-I $(srcdir)/../../scintilla/include -I $(srcdir)/../src
-ifdef CHECK_DEPRECATED
-DEPRECATED=-DGDK_PIXBUF_DISABLE_DEPRECATED -DGDK_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED
-endif
-CXXBASEFLAGS=-W -Wall -pedantic -DGTK -DSCI_LEXER -DPIXMAP_PATH=\"$(pixmapdir)\" -DSYSCONF_PATH=\"$(SYSCONF_PATH)\" $(INCLUDEDIRS) $(DEPRECATED)
+INCLUDES=-I $(SCINTILLA_DIR)/include -I $(srcdir)/../src
+DEFINES += -DGTK
+DEFINES += -DPIXMAP_PATH=\"$(pixmapdir)\" -DSYSCONF_PATH=\"$(SYSCONF_PATH)\"
 
-ifdef DEBUG
-CXXTFLAGS=-DDEBUG -g $(CXXBASEFLAGS)
-else
-CXXTFLAGS=-DNDEBUG -Os $(CXXBASEFLAGS)
-endif
+DEFINES += -D$(if $(DEBUG),DEBUG,NDEBUG)
+BASE_FLAGS += $(if $(DEBUG),-g,-Os)
 
 ifndef NO_LUA
-LUA_CORE_OBJS = lapi.o lcode.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
+LUA_CORE_OBJS = lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 		lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o \
 		ltable.o ltm.o lundump.o lvm.o lzio.o
 
-LUA_LIB_OBJS =	lauxlib.o lbaselib.o ldblib.o liolib.o lmathlib.o ltablib.o \
-		lstrlib.o loadlib.o loslib.o linit.o
+LUA_LIB_OBJS =	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o lmathlib.o ltablib.o \
+		lstrlib.o loadlib.o loslib.o linit.o lutf8lib.o
 
 LUA_OBJS = LuaExtension.o $(LUA_CORE_OBJS) $(LUA_LIB_OBJS)
 
-vpath %.c $(srcdir)/../lua/src $(srcdir)/../lua/src/lib
+vpath %.c $(srcdir)/../lua/src
 
-INCLUDEDIRS=-I $(srcdir)/../../scintilla/include -I $(srcdir)/../src -I$(srcdir)/../lua/include
+INCLUDES += -I$(srcdir)/../lua/src
+LUA_DEFINES = -DLUA_USE_POSIX -DLUA_USE_DLOPEN
 
-.c.o:
-	$(CC) $(INCLUDEDIRS) $(MISLEADING) -DLUA_USE_POSIX $(CXXTFLAGS) $(CFLAGS) -c $< -o $@
+%.o: %.c
+	$(CC) $(DEFINES) $(INCLUDES) $(WARNINGS) $(LUA_DEFINES) $(BASE_FLAGS) $(CFLAGS) -c $< -o $@
 
 else
-CXXTFLAGS+=-DNO_LUA
+DEFINES += -DNO_LUA
 endif
 
-CXXTFLAGS:=$(CXXTFLAGS)
+LIBS += -lm -lstdc++
 
 UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Linux)
-LIBDL:=-ldl
+LIBS += -ldl
 endif
 ifneq (,$(findstring GNU,$(UNAME)))
-LIBDL:=-ldl
-endif
-ifeq ($(UNAME), Darwin)
-CXXTFLAGS:=$(CXXTFLAGS) -Dunix
+LIBS += -ldl
 endif
 
-.cxx.o:
-	$(CXX) --std=c++0x $(CONFIGFLAGS) $(CXXTFLAGS) $(CXXFLAGS) -c $< -o $@
+%.o: %.cxx
+	$(CXX) --std=c++17 $(DEFINES) $(INCLUDES) $(WARNINGS) $(CONFIGFLAGS) $(BASE_FLAGS) $(CXXFLAGS) -c $< -o $@
 
 clean:
 	rm -f *.o *.plist $(PROG)
 
 analyze:
-	clang --analyze $(CONFIGFLAGS) $(CXXTFLAGS) $(CXXFLAGS) $(srcdir)/*.cxx $(srcdir)/../src/*.cxx
-	# Could analyze Lua implementation as well but won't be fixing the warnings so its just noise
-	#clang --analyze $(CONFIGFLAGS) $(CXXTFLAGS) $(CXXFLAGS) *.cxx ../src/*.cxx ../lua/src/*.c ../lua/src/lib/*.c
+	clang --analyze --std=c++17 $(DEFINES) $(INCLUDES) $(WARNINGS) $(CONFIGFLAGS) $(BASE_FLAGS) $(CXXFLAGS) $(srcdir)/*.cxx $(srcdir)/../src/*.cxx
 
-deps: deps.mak
-deps.mak:
-	$(CXX) -MM $(CONFIGFLAGS) $(CXXTFLAGS) $(CXXFLAGS) $(srcdir)/*.cxx $(srcdir)/../src/*.cxx | sed -e 's/\/usr.* //' | grep [a-zA-Z] >$@
+depend deps.mak:
+	$(PYTHON) AppDepGen.py
 
 # make should be run in ../../scintilla/gtk to compile all the lexers.
-COMPLIB=$(srcdir)/../../scintilla/bin/scintilla.a
+COMPLIB=$(SCINTILLA_DIR)/bin/scintilla.a
 
-$(PROG): SciTEGTK.o GUIGTK.o Widget.o \
-FilePath.o SciTEBase.o FileWorker.o Cookie.o Credits.o SciTEBuffers.o SciTEIO.o StringList.o \
-ExportHTML.o ExportPDF.o ExportRTF.o ExportTEX.o ExportXML.o \
-MatchMarker.o StringHelpers.o \
-PropSetFile.o MultiplexExtension.o DirectorExtension.o SciTEProps.o StyleDefinition.o StyleWriter.o Utf8_16.o \
-	JobQueue.o GTKMutex.o IFaceTable.o $(COMPLIB) $(LUA_OBJS)
-	$(CXX) `$(CONFIGTHREADS)` -rdynamic -Wl,--as-needed -Wl,--version-script $(srcdir)/lua.vers -DGTK $^ -o $@ $(CONFIGLIB) $(LIBDL) -lm -lstdc++
+# To almost make lua.vers (needs header and footer added) which is only needed after updating Lua:
+# nm -g ../bin/SciTE | grep lua | awk '{print "\t\t" $3 ";"}' >lua2.vers
+
+SRC_OBJS = \
+	Cookie.o \
+	Credits.o \
+	EditorConfig.o \
+	ExportHTML.o \
+	ExportPDF.o \
+	ExportRTF.o \
+	ExportTEX.o \
+	ExportXML.o \
+	FilePath.o \
+	FileWorker.o \
+	IFaceTable.o \
+	JobQueue.o \
+	LexillaLibrary.o \
+	MatchMarker.o \
+	MultiplexExtension.o \
+	PropSetFile.o \
+	ScintillaCall.o \
+	ScintillaWindow.o \
+	SciTEBase.o \
+	SciTEBuffers.o \
+	SciTEIO.o \
+	SciTEProps.o \
+	StringHelpers.o \
+	StringList.o \
+	StyleDefinition.o \
+	StyleWriter.o \
+	Utf8_16.o
+
+$(PROG): SciTEGTK.o GUIGTK.o Widget.o DirectorExtension.o $(SRC_OBJS) $(COMPLIB) $(LUA_OBJS)
+	$(CXX) $(BASE_FLAGS) -rdynamic -Wl,--as-needed -Wl,--version-script $(srcdir)/lua.vers $^ -o $@ $(CONFIGLIB) $(LIBS) $(LDLIBS)
 
 # Automatically generate header dependencies with "make deps"
 include deps.mak
@@ -133,14 +156,14 @@ install:
 
 	$(INSTALL) -m 755 $(PROG) $(DESTDIR)$(bindir)
 
-	for files in $(srcdir)/../src/*.properties $(srcdir)/../doc/*.html $(srcdir)/../doc/SciTEIco.png $(srcdir)/../doc/PrintHi.png; \
+	for files in $(srcdir)/../src/*.properties $(srcdir)/../doc/*.html $(srcdir)/../doc/SciTEIco.png $(srcdir)/../doc/PrintHi.png $(srcdir)/../doc/SciTEIndicators.png; \
 	do \
 		$(INSTALL) -m 644 $$files $(DESTDIR)$(SYSCONF_PATH); \
 	done
 
 ifdef gnomeprefix
 	$(INSTALL) -m 755 -d $(DESTDIR)$(datadir)/applications $(DESTDIR)$(pixmapdir)
-	$(INSTALL) -m 755 $(srcdir)/SciTE.desktop $(DESTDIR)$(datadir)/applications/SciTE.desktop
+	$(INSTALL) -m 644 $(srcdir)/SciTE.desktop $(DESTDIR)$(datadir)/applications/SciTE.desktop
 	$(INSTALL) -m 644 $(srcdir)/Sci48M.png $(DESTDIR)$(pixmapdir)/Sci48M.png
 endif
 

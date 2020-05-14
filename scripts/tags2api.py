@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+# Contributed file - not tested before releases made.
 
 # Produces a .api file for SciTE's identifier completion and calltip features.
 # invoke as
@@ -119,7 +120,7 @@ for line in fileinput.input():
 						else:	# A character set independent function.
 							apis[curDef] = 1
 					else:
-						apis.add[curDef] = 1
+						apis[curDef] = 1
 				except IndexError:
 					pass
 			elif tagType[0] == 'd':	# Macro definition.

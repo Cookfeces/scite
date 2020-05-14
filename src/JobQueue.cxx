@@ -6,22 +6,24 @@
 // Copyright 2007 by Neil Hodgson <neilh@scintilla.org>, from April White <april_white@sympatico.ca>
 // The License.txt file describes the conditions under which this software may be distributed.
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <sys/stat.h>
-#include <time.h>
+#include <cstddef>
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
+#include <cstdarg>
+#include <ctime>
 
 #include <string>
 #include <vector>
-#include <set>
 #include <map>
+#include <set>
 #include <algorithm>
+#include <memory>
+#include <chrono>
+#include <atomic>
+#include <mutex>
 
-#include "Scintilla.h"
+#include <sys/stat.h>
 
 #include "GUI.h"
 
@@ -29,10 +31,9 @@
 #include "FilePath.h"
 #include "PropSetFile.h"
 #include "SciTE.h"
-#include "Mutex.h"
 #include "JobQueue.h"
 
-JobSubsystem SubsystemFromChar(char c) {
+JobSubsystem SubsystemFromChar(char c) noexcept {
 	if (c == '1')
 		return jobGUI;
 	else if (c == '2')
@@ -57,11 +58,11 @@ JobMode::JobMode(PropSetFile &props, int item, const char *fileNameExt) : jobTyp
 	std::string propName = std::string("command.mode.") + itemSuffix;
 	std::string modeVal(props.GetNewExpandString(propName.c_str(), fileNameExt));
 
-	modeVal.erase(std::remove(modeVal.begin(), modeVal.end(),' '), modeVal.end());
+	modeVal.erase(std::remove(modeVal.begin(), modeVal.end(), ' '), modeVal.end());
 	std::vector<std::string> modes = StringSplit(modeVal, ',');
-	for (std::vector<std::string>::iterator it=modes.begin(); it != modes.end(); ++it) {
+	for (const std::string &mode : modes) {
 
-		std::vector<std::string> optValue = StringSplit(*it, ':');
+		std::vector<std::string> optValue = StringSplit(mode, ':');
 
 		if (optValue.size() == 0) {
 			continue;
@@ -178,9 +179,75 @@ JobMode::JobMode(PropSetFile &props, int item, const char *fileNameExt) : jobTyp
 		flags |= jobGroupUndo;
 }
 
-void JobQueue::ClearJobs() {
-	for (int ic = 0; ic < commandMax; ic++) {
-		jobQueue[ic].Clear();
+Job::Job() noexcept : jobType(jobCLI), flags(0) {
+	Clear();
+}
+
+Job::Job(const std::string &command_, const FilePath &directory_, JobSubsystem jobType_, const std::string &input_, int flags_)
+	: command(command_), directory(directory_), jobType(jobType_), input(input_), flags(flags_) {
+}
+
+void Job::Clear() noexcept {
+	command.clear();
+	directory.Init();
+	jobType = jobCLI;
+	input.clear();
+	flags = 0;
+}
+
+
+JobQueue::JobQueue() : jobQueue(commandMax) {
+	clearBeforeExecute = false;
+	isBuilding = false;
+	isBuilt = false;
+	executing = false;
+	commandCurrent = 0;
+	jobUsesOutputPane = false;
+	cancelFlag = false;
+	timeCommands = false;
+}
+
+JobQueue::~JobQueue() {
+}
+
+bool JobQueue::TimeCommands() const noexcept {
+	return timeCommands;
+}
+
+bool JobQueue::ClearBeforeExecute() const noexcept {
+	return clearBeforeExecute;
+}
+
+bool JobQueue::ShowOutputPane() const noexcept {
+	return jobUsesOutputPane;
+}
+
+bool JobQueue::IsExecuting() const noexcept {
+	return executing;
+}
+
+void JobQueue::SetExecuting(bool state) noexcept {
+	executing = state;
+}
+
+bool JobQueue::HasCommandToRun() const noexcept {
+	return commandCurrent > 0;
+}
+
+bool JobQueue::SetCancelFlag(bool value) {
+	std::lock_guard<std::mutex> guard(mutex);
+	const bool cancelFlagPrevious = cancelFlag;
+	cancelFlag = value;
+	return cancelFlagPrevious;
+}
+
+bool JobQueue::Cancelled() noexcept {
+	return cancelFlag;
+}
+
+void JobQueue::ClearJobs() noexcept {
+	for (Job &ic : jobQueue) {
+		ic.Clear();
 	}
 	commandCurrent = 0;
 }

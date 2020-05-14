@@ -13,7 +13,7 @@
 <body>
 <h2>SciTE menu commands</h2>
 <table>
-<thead><td>Command</td><td>Menu text</td></thead>
+<thead><tr><th>Command</th><th>Menu text</th></tr></thead>
 <tr><td>IDM_NEW</td><td>New</td></tr>
 <tr><td>IDM_OPEN</td><td>Open</td></tr>
 <tr><td>IDM_OPENSELECTED</td><td>Open Selected Filename</td></tr>
@@ -59,6 +59,7 @@
 <tr><td>IDM_STREAM_COMMENT</td><td>Stream Comment</td></tr>
 <tr><td>IDM_UPRCASE</td><td>Make Selection Uppercase</td></tr>
 <tr><td>IDM_LWRCASE</td><td>Make Selection Lowercase</td></tr>
+<tr><td>IDM_LINEREVERSE</td><td>Reverse Selected Lines</td></tr>
 <tr><td>IDM_JOIN</td><td>Join</td></tr>
 <tr><td>IDM_SPLIT</td><td>Split</td></tr>
 <tr><td>IDM_FIND</td><td>Find</td></tr>
@@ -74,6 +75,7 @@
 <tr><td>IDM_BOOKMARK_PREV</td><td>Previous Bookmark</td></tr>
 <tr><td>IDM_BOOKMARK_TOGGLE</td><td>Toggle Bookmark</td></tr>
 <tr><td>IDM_BOOKMARK_CLEARALL</td><td>Clear All Bookmarks</td></tr>
+<tr><td>IDM_BOOKMARK_SELECT_ALL</td><td>Select All Bookmarks</td></tr>
 <tr><td>IDM_EXPAND</td><td>Toggle current fold</td></tr>
 <tr><td>IDM_TOGGLE_FOLDALL</td><td>Toggle all folds</td></tr>
 <tr><td>IDM_FULLSCREEN</td><td>Full Screen</td></tr>
@@ -127,7 +129,7 @@
 </table>
 <h2>Scintilla key commands</h2>
 <table>
-<thead><td>Command</td><td>Name</td><td>Explanation</td></thead>
+<thead><tr><th>Command</th><th>Name</th><th>Explanation</th></tr></thead>
 <tr><td>2547</td><td>AnnotationClearAll</td><td>Clear the annotations from all lines</td></tr>
 <tr><td>2101</td><td>AutoCCancel</td><td>Remove the auto-completion list from the screen.</td></tr>
 <tr><td>2104</td><td>AutoCComplete</td><td>User has selected an item so remove the list and insert the selection.</td></tr>
@@ -190,6 +192,7 @@
 <tr><td>2432</td><td>LineEndRectExtend</td><td>Move caret to last position on line, extending rectangular selection to new caret position.</td></tr>
 <tr><td>2451</td><td>LineEndWrap</td><td>Like LineEnd but when word-wrap is enabled goes first to end of display line LineEndDisplay, then to start of document line LineEnd.</td></tr>
 <tr><td>2452</td><td>LineEndWrapExtend</td><td>Like LineEndExtend but when word-wrap is enabled extends first to end of display line LineEndDisplayExtend, then to start of document line LineEndExtend.</td></tr>
+<tr><td>2354</td><td>LineReverse</td><td>Reverse order of selected lines.</td></tr>
 <tr><td>2342</td><td>LineScrollDown</td><td>Scroll the document down, keeping the caret visible.</td></tr>
 <tr><td>2343</td><td>LineScrollUp</td><td>Scroll the document up, keeping the caret visible.</td></tr>
 <tr><td>2339</td><td>LineTranspose</td><td>Switch the current line with the previous.</td></tr>
@@ -202,6 +205,7 @@
 <tr><td>2401</td><td>MoveCaretInsideView</td><td>Move the caret inside current view if it's not there already.</td></tr>
 <tr><td>2621</td><td>MoveSelectedLinesDown</td><td>Move the selected lines down one line, shifting the line below before the selection</td></tr>
 <tr><td>2620</td><td>MoveSelectedLinesUp</td><td>Move the selected lines up one line, shifting the line above after the selection</td></tr>
+<tr><td>2695</td><td>MultiEdgeClearAll</td><td>Clear all vertical edges.</td></tr>
 <tr><td>2689</td><td>MultipleSelectAddEach</td><td>Add each occurrence of the main selection in the target to the set of selections. If the current selection is empty then select word around caret.</td></tr>
 <tr><td>2688</td><td>MultipleSelectAddNext</td><td>Add the next occurrence of the main selection to the set of selections as main. If the current selection is empty then select word around caret.</td></tr>
 <tr><td>2329</td><td>NewLine</td><td>Insert a new line, may use a CRLF, CR or LF depending on EOL mode.</td></tr>

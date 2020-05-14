@@ -30,118 +30,158 @@
 # On Fedora 17, qmake is called qmake-qt4 so sepbuild.py should probe for correct name.
 # There are also problems with clang failing in the g++ 4.7 headers.
 
-# Run commands in parallel up to number of processors 
+# Turn off deprecation warnings if not interested:
+#export CXXFLAGS="-Wno-deprecated-declarations -D GLIB_DISABLE_DEPRECATION_WARNINGS"
+
+# Run commands in parallel up to number of processors
 JOBS="-j $(getconf _NPROCESSORS_ONLN)"
 
 cd ../..
 
 # ************************************************************
 # Target 1: gcc build for GTK+ 2
-cd scintilla/test/unit
+(
+cd scintilla/test/unit || exit
 make clean
 make $JOBS test
 make clean
-cd ../../..
+)
 
-cd scintilla/gtk
+(
+cd scintilla/lexilla/src || exit
 make clean
-make $JOBS CHECK_DEPRECATED=1
-cd ../..
-
-cd scite/gtk
-make clean
-# Don't bother with CHECK_DEPRECATED on SciTE as the GTK+ 3.x code path fixes the deprecations
 make $JOBS
-cd ../..
+cd ..
+cd test || exit
+make clean
+make test
+make clean
+cd ..
+cd src || exit
+make clean
+)
+
+(
+cd scintilla/gtk || exit
+make clean
+make $JOBS
+)
+
+(
+cd scite/gtk || exit
+make clean
+make $JOBS
+)
 
 # ************************************************************
 # Target 2: gcc build for GTK+ 3
-cd scintilla/gtk
+(
+cd scintilla/gtk || exit
 make clean
-make $JOBS GTK3=1 CHECK_DEPRECATED=1
-cd ../..
+make $JOBS GTK3=1
+)
 
-cd scite/gtk
+(
+cd scite/gtk || exit
 make clean
-make $JOBS GTK3=1 CHECK_DEPRECATED=1
-cd ../..
+make $JOBS GTK3=1
+)
 
 # ************************************************************
 # Target 3: Qt builds
 # Requires Qt development libraries and qmake to be installed
 
-QMAKENAME=$(basename `which qmake-qt4 || which qmake`)
+# Find best available qmake
+QMAKENAME=""
+if hash qmake-qt5 2>/dev/null; then
+	QMAKENAME="qmake-qt5"
+elif hash qmake 2>/dev/null; then
+	QMAKENAME="qmake -qt=5"
+elif hash qmake-qt4 2>/dev/null; then
+	QMAKENAME="qmake-qt4"
+fi
 
-cd scintilla/qt
-cd ScintillaEditBase
+(
+cd scintilla/qt || exit
+
+(
+cd ScintillaEditBase || exit
 $QMAKENAME
 make clean
 make $JOBS
 make distclean
-cd ..
+)
 
-cd ScintillaEdit
-python WidgetGen.py
+(
+cd ScintillaEdit || exit
+python3 WidgetGen.py
 $QMAKENAME
 make clean
 make $JOBS
 make distclean
-cd ..
+)
 
-cd ScintillaEditPy
-python sepbuild.py
-cd ../../test
-python simpleTests.py
-python lexTests.py
-python performanceTests.py
-cd ../qt/ScintillaEditPy
-python sepbuild.py --clean
-cd ..
-cd ../..
+(
+cd ScintillaEditPy || exit
+python2 sepbuild.py
+cd ../../test || exit
+python2 simpleTests.py
+python2 lexTests.py
+python2 performanceTests.py
+cd ../qt/ScintillaEditPy || exit
+python2 sepbuild.py --clean
+)
+
+)
 
 # ************************************************************
 # Target 4: clang build for GTK+ 2
-cd scintilla/gtk
+(
+cd scintilla/gtk || exit
 make clean
-make $JOBS CLANG=1 CHECK_DEPRECATED=1 NO_CXX11_REGEX=1
-cd ../..
+make $JOBS CLANG=1
+)
 
-cd scite/gtk
+(
+cd scite/gtk || exit
 make clean
-# Don't bother with CHECK_DEPRECATED on SciTE as the GTK+ 3.x code path fixes the deprecations
-make $JOBS CLANG=1 NO_CXX11_REGEX=1
-cd ../..
+make $JOBS CLANG=1
+)
 
 # ************************************************************
 # Target 5: clang build for GTK+ 3
-cd scintilla/gtk
+(
+cd scintilla/gtk || exit
 make clean
-make $JOBS CLANG=1 GTK3=1 CHECK_DEPRECATED=1 NO_CXX11_REGEX=1
-cd ../..
+make $JOBS CLANG=1 GTK3=1
+)
 
-cd scite/gtk
+(
+cd scite/gtk || exit
 make clean
-make $JOBS CLANG=1 GTK3=1 CHECK_DEPRECATED=1 NO_CXX11_REGEX=1
-cd ../..
+make $JOBS CLANG=1 GTK3=1
+)
 
 # ************************************************************
 # Target 6: clang analyze for GTK+ 2
-cd scintilla/gtk
+(
+cd scintilla/gtk || exit
 make clean
-make $JOBS CHECK_DEPRECATED=1 NO_CXX11_REGEX=1 analyze
-cd ../..
+make $JOBS analyze
+)
 
-cd scite/gtk
+(
+cd scite/gtk || exit
 make clean
-make $JOBS NO_CXX11_REGEX=1 analyze
-make clean
-cd ../..
-cd scintilla/gtk
+make $JOBS analyze
 make clean
 cd ../..
+cd scintilla/gtk || exit
+make clean
+)
 
 # ************************************************************
 # Target 7: cppcheck static checker
 # Disabled as there are false warnings and some different style choices
-#~ cppcheck --enable=all --max-configs=100 --suppressions-list=scintilla/cppcheck.suppress -I scintilla/src -I scintilla/include -I scintilla/lexlib -I scintilla/qt/ScintillaEditBase --template=gcc --quiet scintilla
-#~ cppcheck --enable=all --max-configs=100 -I scite/src -I scintilla/include -I scite/lua/include --template=gcc --quiet scite
+cppcheck --enable=all --max-configs=100 --suppressions-list=scintilla/cppcheck.suppress -I scintilla/src -I scintilla/include -I scintilla/lexlib -I scintilla/qt/ScintillaEditBase --template=gcc --quiet scintilla
+cppcheck --enable=all --max-configs=100 --suppressions-list=scite/cppcheck.suppress -I scite/src -I scintilla/include -I scite/lua/src -Ulua_assert -DPATH_MAX=260 --template=gcc --quiet scite

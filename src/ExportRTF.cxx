@@ -5,25 +5,33 @@
 // Copyright 1998-2006 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <time.h>
+#include <cstddef>
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
+#include <ctime>
 
 #include <string>
+#include <string_view>
 #include <vector>
-#include <set>
 #include <map>
+#include <set>
+#include <memory>
+#include <chrono>
 #include <sstream>
+#include <atomic>
+#include <mutex>
 
-#include "Scintilla.h"
+#include <fcntl.h>
+#include <sys/stat.h>
+
 #include "ILexer.h"
 
+#include "ScintillaTypes.h"
+#include "ScintillaCall.h"
+
 #include "GUI.h"
+#include "ScintillaWindow.h"
 
 #include "StringList.h"
 #include "StringHelpers.h"
@@ -33,7 +41,6 @@
 #include "StyleWriter.h"
 #include "Extender.h"
 #include "SciTE.h"
-#include "Mutex.h"
 #include "JobQueue.h"
 #include "Cookie.h"
 #include "Worker.h"
@@ -80,14 +87,13 @@ static size_t FindCaseInsensitive(const std::vector<std::string> &values, const 
 }
 
 // extract the next RTF control word from *style
-static void GetRTFNextControl(const char **style, char *control) {
-	ptrdiff_t len;
+static void GetRTFNextControl(const char **style, char *control) noexcept {
 	const char *pos = *style;
 	*control = '\0';
 	if ('\0' == *pos) return;
 	pos++; // implicit skip over leading '\'
 	while ('\0' != *pos && '\\' != *pos) { pos++; }
-	len = pos - *style;
+	ptrdiff_t len = pos - *style;
 	memcpy(control, *style, len);
 	*(control + len) = '\0';
 	*style = pos;
@@ -95,7 +101,8 @@ static void GetRTFNextControl(const char **style, char *control) {
 
 // extracts control words that are different between two styles
 static std::string GetRTFStyleChange(const char *last, const char *current) { // \f0\fs20\cf0\highlight0\b0\i0
-	char lastControl[MAX_STYLEDEF], currentControl[MAX_STYLEDEF];
+	char lastControl[MAX_STYLEDEF] = "";
+	char currentControl[MAX_STYLEDEF] = "";
 	const char *lastPos = last;
 	const char *currentPos = current;
 	std::string delta;
@@ -111,24 +118,24 @@ static std::string GetRTFStyleChange(const char *last, const char *current) { //
 	return delta;
 }
 
-void SciTEBase::SaveToStreamRTF(std::ostream &os, int start, int end) {
-	int lengthDoc = LengthDocument();
+void SciTEBase::SaveToStreamRTF(std::ostream &os, SA::Position start, SA::Position end) {
+	const SA::Position lengthDoc = LengthDocument();
 	if (end < 0)
 		end = lengthDoc;
 	RemoveFindMarks();
-	wEditor.Call(SCI_COLOURISE, 0, -1);
+	wEditor.ColouriseAll();
 
-	StyleDefinition defaultStyle = StyleDefinitionFor(STYLE_DEFAULT);
+	StyleDefinition defaultStyle = StyleDefinitionFor(StyleDefault);
 
 	int tabSize = props.GetInt("export.rtf.tabsize", props.GetInt("tabsize"));
-	int wysiwyg = props.GetInt("export.rtf.wysiwyg", 1);
+	const int wysiwyg = props.GetInt("export.rtf.wysiwyg", 1);
 	std::string fontFace = props.GetExpandedString("export.rtf.font.face");
 	if (fontFace.length()) {
 		defaultStyle.font = fontFace;
 	} else if (defaultStyle.font.length() == 0) {
 		defaultStyle.font = RTF_FONTFACE;
 	}
-	int fontSize = props.GetInt("export.rtf.font.size", 0);
+	const int fontSize = props.GetInt("export.rtf.font.size", 0);
 	if (fontSize > 0) {
 		defaultStyle.size = fontSize << 1;
 	} else if (defaultStyle.size == 0) {
@@ -136,9 +143,9 @@ void SciTEBase::SaveToStreamRTF(std::ostream &os, int start, int end) {
 	} else {
 		defaultStyle.size <<= 1;
 	}
-	const bool isUTF8 = wEditor.Call(SCI_GETCODEPAGE) == SC_CP_UTF8;
-	unsigned int characterset = props.GetInt("character.set", SC_CHARSET_DEFAULT);
-	int tabs = props.GetInt("export.rtf.tabs", 0);
+	const bool isUTF8 = wEditor.CodePage() == SA::CpUtf8;
+	const unsigned int characterset = props.GetInt("character.set", static_cast<int>(SA::CharacterSet::Default));
+	const int tabs = props.GetInt("export.rtf.tabs", 0);
 	if (tabSize == 0)
 		tabSize = 4;
 
@@ -151,10 +158,10 @@ void SciTEBase::SaveToStreamRTF(std::ostream &os, int start, int end) {
 	colors.push_back(defaultStyle.fore);
 	colors.push_back(defaultStyle.back);
 
-	for (int istyle = 0; istyle <= STYLE_MAX; istyle++) {
+	for (int istyle = 0; istyle <= StyleMax; istyle++) {
 		std::ostringstream osStyle;
 
-		StyleDefinition sd = StyleDefinitionFor(istyle);
+		const StyleDefinition sd = StyleDefinitionFor(istyle);
 
 		if (sd.specified != StyleDefinition::sdNone) {
 			size_t iFont = 0;
@@ -199,31 +206,31 @@ void SciTEBase::SaveToStreamRTF(std::ostream &os, int start, int end) {
 			}
 		} else {
 			osStyle << RTF_SETFONTFACE "0" RTF_SETFONTSIZE << defaultStyle.size <<
-			        RTF_SETCOLOR "0" RTF_SETBACKGROUND "1"
-			        RTF_BOLD_OFF RTF_ITALIC_OFF;
+				RTF_SETCOLOR "0" RTF_SETBACKGROUND "1"
+				RTF_BOLD_OFF RTF_ITALIC_OFF;
 		}
 		styles.push_back(osStyle.str());
 	}
 	os << RTF_FONTDEFCLOSE RTF_COLORDEFOPEN;
-	for (size_t i = 0; i < colors.size(); i++) {
-		os << "\\red" << IntFromHexByte(colors[i].c_str() + 1) << "\\green" << IntFromHexByte(colors[i].c_str() + 3) <<
-		   "\\blue" << IntFromHexByte(colors[i].c_str() + 5) << ";";
+	for (const std::string &color : colors) {
+		os << "\\red" << IntFromHexByte(color.c_str() + 1) << "\\green" << IntFromHexByte(color.c_str() + 3) <<
+		   "\\blue" << IntFromHexByte(color.c_str() + 5) << ";";
 	}
 	os << RTF_COLORDEFCLOSE RTF_HEADERCLOSE RTF_BODYOPEN RTF_SETFONTFACE "0"
 	   RTF_SETFONTSIZE << defaultStyle.size << RTF_SETCOLOR "0 ";
 	std::ostringstream osStyleDefault;
 	osStyleDefault << RTF_SETFONTFACE "0" RTF_SETFONTSIZE << defaultStyle.size <<
-	               RTF_SETCOLOR "0" RTF_SETBACKGROUND "1"
-	               RTF_BOLD_OFF RTF_ITALIC_OFF;
+		       RTF_SETCOLOR "0" RTF_SETBACKGROUND "1"
+		       RTF_BOLD_OFF RTF_ITALIC_OFF;
 	std::string lastStyle = osStyleDefault.str();
 	bool prevCR = false;
 	int styleCurrent = -1;
 	TextReader acc(wEditor);
 	int column = 0;
-	for (int iPos = start; iPos < end; iPos++) {
-		char ch = acc[iPos];
+	for (SA::Position iPos = start; iPos < end; iPos++) {
+		const char ch = acc[iPos];
 		int style = acc.StyleAt(iPos);
-		if (style > STYLE_MAX)
+		if (style > StyleMax)
 			style = 0;
 		if (style != styleCurrent) {
 			const std::string deltaStyle = GetRTFStyleChange(lastStyle.c_str(), styles[style].c_str());
@@ -242,7 +249,7 @@ void SciTEBase::SaveToStreamRTF(std::ostream &os, int start, int end) {
 			if (tabs) {
 				os << RTF_TAB;
 			} else {
-				int ts = tabSize - (column % tabSize);
+				const int ts = tabSize - (column % tabSize);
 				for (int itab = 0; itab < ts; itab++) {
 					os << ' ';
 				}
@@ -257,11 +264,11 @@ void SciTEBase::SaveToStreamRTF(std::ostream &os, int start, int end) {
 			os << RTF_EOLN;
 			column = -1;
 		} else if (isUTF8 && !IsASCII(ch)) {
-			const int nextPosition = wEditor.Call(SCI_POSITIONAFTER, iPos);
-			wEditor.Call(SCI_SETTARGETRANGE, iPos, nextPosition);
-			unsigned char u8Char[5] = "";
-			wEditor.CallPointer(SCI_TARGETASUTF8, 0, u8Char);
-			unsigned int u32 = UTF32Character(u8Char);
+			const SA::Position nextPosition = wEditor.PositionAfter(iPos);
+			wEditor.SetTarget(SA::Range(iPos, nextPosition));
+			char u8Char[5] = "";
+			wEditor.TargetAsUTF8(u8Char);
+			const unsigned int u32 = UTF32Character(u8Char);
 			if (u32 < 0x10000) {
 				os << "\\u" << static_cast<short>(u32) << "?";
 			} else {
@@ -278,17 +285,21 @@ void SciTEBase::SaveToStreamRTF(std::ostream &os, int start, int end) {
 	os << RTF_BODYCLOSE;
 }
 
-void SciTEBase::SaveToRTF(FilePath saveName, int start, int end) {
+void SciTEBase::SaveToRTF(const FilePath &saveName, SA::Position start, SA::Position end) {
 	FILE *fp = saveName.Open(GUI_TEXT("wt"));
-	bool failedWrite = fp == NULL;
+	bool failedWrite = fp == nullptr;
 	if (fp) {
-		std::ostringstream oss;
-		SaveToStreamRTF(oss, start, end);
-		std::string rtf = oss.str();
-		if (fwrite(rtf.c_str(), 1, rtf.length(), fp) != rtf.length()) {
-			failedWrite = true;
-		}
-		if (fclose(fp) != 0) {
+		try {
+			std::ostringstream oss;
+			SaveToStreamRTF(oss, start, end);
+			const std::string rtf = oss.str();
+			if (fwrite(rtf.c_str(), 1, rtf.length(), fp) != rtf.length()) {
+				failedWrite = true;
+			}
+			if (fclose(fp) != 0) {
+				failedWrite = true;
+			}
+		} catch (std::exception &) {
 			failedWrite = true;
 		}
 	}

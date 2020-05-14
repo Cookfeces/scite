@@ -23,16 +23,19 @@
             padding: 1px 5px 1px 5px;
         }
         .windowsonly {
-            background: #EBF3FF;
+            background: #E7F0FF;
         }
         .gtkonly {
-            background: #FFFFE7;
+            background: #FFFFD7;
         }
         .osxonly {
-            background: #FFE7E7;
+            background: #FFE0E0;
         }
         .windows-osx {
-            background: #FFF3FF;
+            background: #FFEBFF;
+        }
+        .windows-gtk {
+            background: #EBFFF7;
         }
         .example {
             color: #008000;
@@ -92,7 +95,7 @@
         feature of automatic syntax styling. SciTE can hold multiple files in memory at one time but
         only one file will be visible. Rectangular
         blocks of text can be selected in SciTE by holding down the Alt key on Windows or the Ctrl
-        key on GTK+ while dragging the mouse over the text. The modifier key used on GTK+
+        key on GTK while dragging the mouse over the text. The modifier key used on GTK
         can be changed with the rectangular.selection.modifier property.
     </p>
     <p>
@@ -111,7 +114,7 @@
     </p>
     <blockquote>
 <kbd>
-print "Hi"
+print("hi")
 </kbd>
     </blockquote>
     <p>
@@ -122,15 +125,14 @@ print "Hi"
     the syntax styling to use:
     <blockquote>
         <code>
-                <b><font color="#000080">print </font></b>
-                <i><font color="#800080">"hi"</font></i>
+                <b><font color="#000080">print</font></b><b><font color="#000000">(</font></b><font color="#800080">"hi"</font><b><font color="#000000">)</font></b>
         </code>
     </blockquote>
     Perform the Tools | Go command.<br />
      The output window will be made visible if it is not already visible and will show:<br />
     <blockquote>
         <code>
-                <font color="#0000FF">&gt;python -u printhi.py</font><br />
+                <font color="#0000FF">&gt;pythonw -u printhi.py</font><br />
                 hi<br />
                 <font color="#0000FF">&gt;Exit code: 0</font>
         </code>
@@ -147,8 +149,8 @@ print "Hi"
     </p>
     <blockquote>
         <code>
-        <span style="color:#000080;font-weight:bold;">print </span>
-        <span style="color:#800080;font-style:italic;">"hi"</span><br />
+        <span style="color:#000080;font-weight:bold;">print</span><span style="color:#000000;font-weight:bold;">(</span><span style="color:#800080;">"hi"</span><span style="color:#000000;font-weight:bold;">)</span>
+        <br />
         mistake
         </code>
     </blockquote>
@@ -157,12 +159,12 @@ print "Hi"
     </p>
     <blockquote>
 <pre>
-<span style="color:#0000FF">&gt;python -u printhi.py</span>
+<span style="color:#0000FF">&gt;pythonw -u printhi.py</span>
 hi
-Traceback (innermost last):
-  <span style="color:#FF0000">File "printhi.py", line 2, in ?</span>
+Traceback (most recent call last):
+  <span style="color:#FF0000">File "printhi.py", line 2, in &lt;module&gt;</span>
     mistake
-NameError: mistake
+NameError: name 'mistake' is not defined
 <span style="color:#0000FF">&gt;Exit code: 1</span>
 </pre>
     </blockquote>
@@ -189,7 +191,7 @@ NameError: mistake
     </h3>
     <p>
     Tools can be executed in various modes by SciTE which are called "subsystems". Different
-    subsystems are supported on Windows, GTK+ and OS X. The default subsystem is 0.
+    subsystems are supported on Windows, GTK and macOS. The default subsystem is 0.
     </p>
     <table class="windowsonly" cellpadding="0" cellspacing="0" border="1" summary="Command line commands">
     <thead><tr><td colspan="3">Windows</td></tr></thead>
@@ -209,7 +211,7 @@ NameError: mistake
     </table>
     <br />
     <table class="gtkonly" cellpadding="0" cellspacing="0" border="1" summary="Command line commands">
-    <thead><tr><td colspan="3">GTK+ and OS X</td></tr></thead>
+    <thead><tr><td colspan="3">GTK and macOS</td></tr></thead>
     <tr><td>0</td><td>console</td><td>Execute tool and wait for it to finish</td></tr>
     <tr><td>2</td><td>shellexec</td><td>Execute in background</td></tr>
     <tr><td>3</td><td>lua<br />director</td><td>Internal extension or director extension</td></tr>
@@ -431,6 +433,7 @@ NameError: mistake
         <li>Lua*</li>
         <li>Make</li>
         <li>Matlab*</li>
+        <li>Maxima*</li>
         <li>Metapost*</li>
         <li>MMIXAL</li>
         <li>MSSQL</li>
@@ -524,22 +527,22 @@ NameError: mistake
        Keyboard commands
     </h3>
     <p>
-       Keyboard commands in SciTE mostly follow common Windows and GTK+ conventions.
+       Keyboard commands in SciTE mostly follow common Windows and GTK conventions.
        All movement keys (arrows, page up/down, home and end)
        allow to extend or reduce a stream selection when holding the Shift key,
        and a rectangular selection when holding the Shift and Alt keys.
        Some keys may not be available with some national keyboards or because
-       they are taken by the system such as by a window manager on GTK+.
+       they are taken by the system such as by a window manager on GTK.
        The user.shortcuts setting may be used to assign a key to a function.
        Note that Home key behaviour is changed by the vc.home.key option.
        Keyboard equivalents of menu commands are listed in the menus.
-       OS X keys differ from the other platforms with the command key &#8984;
-       often used where the Ctrl key is used on Windows and GTK+.
+       macOS keys differ from the other platforms with the command key &#8984;
+       often used where the Ctrl key is used on Windows and GTK.
        Some less common commands with no menu equivalent are:
     </p>
 <table cellpadding="0" cellspacing="0" border="1" summary="Keyboard commands">
       <thead>
-        <tr><th>Command</th><th>Key</td><th align="left">OS X Key<br />
+        <tr><th>Command</th><th>Key</th><th align="left">macOS Key<br />
         &#8679; shift<br/>
         &#8963; control<br />
         &#8997; option<br />
@@ -682,7 +685,7 @@ NameError: mistake
        expansion defined in the Abbreviations file. You can open the
        Abbreviations file with a command in the Options menu and
        add abbreviations. There is a default abbreviations file but a different
-	    abbreviations file can be set for particular file extensions.
+       abbreviations file can be set for particular file extensions.
     </p>
     <p>
        Each line in the files looks like "abbreviation=expansion".<br />
@@ -757,16 +760,16 @@ NameError: mistake
        <li>Directory properties file called "SciTEDirectory.properties" which may be
        present in the same or in a parent directory as the file being edited.</li>
        <li>User properties file called "SciTEUser.properties" on Windows
-       and ".SciTEUser.properties" on GTK+</li>
-       <li>Global properties file called "SciTEGlobal.properties"</li>
+       and ".SciTEUser.properties" on GTK.</li>
+       <li>Global properties file called "SciTEGlobal.properties".</li>
        </ul>
     <p>
       Settings in the local properties file override those in the directory properties file
-	   which overrides those in the user properties file which override those
+      which overrides those in the user properties file which override those
       in the global properties files. Environment variables are also available as properties and these
       are overridden by an explicit setting in one of the properties files.
     </p>
-	<p>
+    <p>
       The directory properties file can be used as project options file where user commands and
       compile, build commands should work in the same manner in subdirectories of a project. The
       benefit is that local properties files in subdirectories can be replaced by one properties file
@@ -785,11 +788,16 @@ NameError: mistake
       the command to "jvc".
     </p>
     <p>
+      The global properties file should not be edited by the user as it is replaced with
+      each release. Instead copy the property into the user properties file
+      and change it there.
+    </p>
+    <p>
      On Windows, the global properties file is located in the directory of the executable.
       The user properties file is looked for in the user profile directory as set in the
       USERPROFILE environment variable, or in the directory of the executable if
       USERPROFILE is not set.
-      For GTK+ the user properties file is found in the user's home directory and the global
+      For GTK the user properties file is found in the user's home directory and the global
       properties in a directory set at build time - normally /usr/share/scite.
     </p>
     <p>
@@ -883,8 +891,10 @@ NameError: mistake
        <b>command.go.$(file.patterns.html)=file://$(FilePath)</b>
     </p>
     <p>
-    Wildcard matching only works where the wildcard is at the start of a file specification, so "*.mak" will match "proj.mak" but
-    "Makefile*" will not match "Makefile.in".
+    Wildcard matching treats '?' as matching any character and '*' as matching any number of characters, so
+    "*.mak" will match "proj.mak";
+    "Makefile*" will match "Makefile.in"; and
+    "*.x?l" will match "data.xml" and "transform.xsl".
     </p>
     <p>
     Properties files are not treated as having a particular encoding, however individual property values
@@ -987,8 +997,9 @@ NameError: mistake
     <p>
       Some properties are only available on
       <span class="windowsonly">Windows</span>,
-      <span class="gtkonly">GTK+</span>, or.
-      <span class="osxonly">OS X</span>.
+      <span class="gtkonly">GTK</span>,
+      <span class="osxonly">macOS</span>, or
+      <span class="windows-osx">Windows &amp; macOS</span>.
     </p>
     <table cellpadding="1" cellspacing="0" border="1" summary="Defined variables in property files">
       <tr id='property-position.left'>
@@ -1127,7 +1138,7 @@ NameError: mistake
           depends on your platform.
           You can overwrite this behaviour by setting the property to
           <div class="example">
-  LF   for UNIX and OS X format<br />
+  LF   for UNIX and macOS format<br />
   CR   for Macintosh format prior to OS X<br />
   CRLF for DOS/Windows format</div>
         </td>
@@ -1174,7 +1185,7 @@ NameError: mistake
         <td>
         Setting this to 1 hides the menu bar when the Full Screen command is used on
         Windows.
-        On GTK+ the menu is always visible.
+        On GTK the menu is always visible.
         </td>
       </tr>
       <tr class="windowsonly" id='property-minimize.to.tray'>
@@ -1217,6 +1228,14 @@ NameError: mistake
           Setting tabbar.hide.one to 1 hides the tab bar until there is more than one tab.
         </td>
       </tr>
+      <tr id='property-tabbar.hide.index'>
+        <td>
+          tabbar.hide.index
+        </td>
+        <td>
+          Setting tabbar.hide.index to 1 will hide the buffer number in tabs.
+        </td>
+      </tr>
       <tr class="windowsonly" id='property-tabbar.multiline'>
         <td>
         tabbar.multiline
@@ -1257,7 +1276,7 @@ NameError: mistake
         </td>
         <td>
           The path bar is a line of text under the tab bar showing the full path of the currently selected tab.
-	Setting pathbar.visible to 1 makes the path bar visible on GTK+.
+	Setting pathbar.visible to 1 makes the path bar visible on GTK.
         </td>
       </tr>
       <tr id='property-undo.redo.lazy'>
@@ -1275,6 +1294,17 @@ NameError: mistake
         </td>
         <td>
           Setting this to 1 makes the status bar visible at start up.
+        </td>
+      </tr>
+      <tr class="osxonly" id='property-statusbar.minimum.height'>
+        <td>
+          statusbar.minimum.height
+        </td>
+        <td>
+          On macOS, when the status bar is turned off, it is still visible but only for this
+          height which defaults to 4 pixels. This is because of a bug that causes window corner
+          debris to appear in the margin when scrolling. This parameter may be set to 0
+          if the debris does not appear on a particular setup.
         </td>
       </tr>
       <tr id='property-statusbar.number'>
@@ -1308,27 +1338,20 @@ NameError: mistake
           draw output into a buffer bitmap first and then to the screen instead of directly to the
           screen. On old platforms and some unusual modes this can result in less flickering.
           but is slower.<br />
-          Has no effect on OS X and may have no effect on other platforms or technology choices.
+          Has no effect on macOS and may have no effect on other platforms or technology choices.
         </td>
       </tr>
-      <tr id='property-two.phase.draw'>
+      <tr id='property-phases.draw'>
         <td>
-          phases.draw<br />
-          two.phase.draw
+          phases.draw
         </td>
         <td>
-        There are several orders in which the text area may be drawn offering a trade-off
+        There are two orders in which the text area may be drawn offering a trade-off
         between speed and allowing all pixels of text to be seen even when they overlap
-        other elements. There may also be some flickering on some platforms with higher
-        numbers of phases unless buffered drawing is turned on.<br/>
-        In single phase drawing (phases.draw=0) each
-        run of characters in one style is drawn along with its background.
-        If a character overhangs the end of a run, such as in "<i>V</i>_" where the
-        "<i>V</i>" is in a different style from the "_", then this can cause the right hand
-        side of the "<i>V</i>" to be overdrawn by the background of the "_" which
-        cuts it off.<br/>
+        other elements.
+        There may be some flickering on some platforms if buffered drawing is not turned on.<br/>
         Two phase drawing (phases.draw=1)
-        fixes this by drawing all the backgrounds of a line first and then drawing the text
+        draws all the backgrounds of a line first and then draws the text
         in transparent mode. Lines are drawn separately and no line will overlap another
         so any pixels that overlap into another line such as extreme ascenders and
         descenders on characters will be cut off.<br/>
@@ -1337,12 +1360,12 @@ NameError: mistake
         the appearance in layers or phases. The coloured backgrounds for all lines are
         drawn before any text and then all the text is drawn in transparent mode over this
         combined background without clipping text to the line boundaries. This allows
-        extreme ascenders and decenders to overflow into the adjacent lines.
+        extreme ascenders and descenders to overflow into the adjacent lines.
         This mode is incompatible with buffered.draw so will be treated as phases.draw=1
-        when bufferd.draw=1.<br/>
-        The default is for drawing to be two phase.<br/>
-        The two.phase.draw property was used before multiple phase drawing was added
-        and should be replaced with phases.draw.
+        when buffered.draw=1.<br/>
+        The default is for drawing to be two phase.<br />
+        Single phase drawing (phases.draw=0) is a deprecated mode that was used in previous
+        releases. While it can still be enabled, it is not supported and may cause incorrect drawing.<br/>
         </td>
       </tr>
       <tr class="windowsonly" id='property-technology'>
@@ -1414,7 +1437,7 @@ NameError: mistake
 	instance exits.
 	On Windows, the instance with the Options | Open Files Here
 	menu item checked opens the file.
-	On GTK+, an arbitrary instance opens the file.
+	On GTK, an arbitrary instance opens the file.
         </td>
       </tr>
       <tr id='property-read.only'>
@@ -1450,6 +1473,36 @@ NameError: mistake
 	The default value is -1 allows background processing for all files.
 	For saving, the size used is the in-memory size in bytes which will differ from the on-disk size
 	when the UTF-16 encoding is used.
+        </td>
+      </tr>
+      </tr>
+      <tr id='property-file.size.large'>
+        <td>
+          <a name='property-file.size.large'></a>
+           file.size.large
+        </td>
+        <td>
+          This setting controls whether files are opened into a mode that will work with files larger
+          than 2 gigabytes called 'large mode'.
+          Files larger than the given size in bytes will be opened in large mode.
+          Without this setting, SciTE will use less memory but will fail for files that are
+          larger than 2 gigabytes when opened or grow larger than 2 gigabytes.
+          The default value is 100000000 so files larger than 100,000,000 bytes are opened in large mode.<br />
+          The large mode only works when SciTE is built as a 64-bit application.
+        </td>
+      </tr>
+      <tr id='property-file.size.no.styles'>
+        <td>
+          <a name='property-file.size.no.styles'></a>
+           file.size.no.styles
+        </td>
+        <td>
+          Very large files take a long time to style completely and this can
+          make editing too slow.
+          Files larger than the given size in bytes will be opened with styling turned off.
+          It is only the file size at opening that is considered - styling will not turn on or off
+          when the file size changes during editing.
+          The default value is 1000000 so files larger than 1,000,000 bytes are opened without styling.
         </td>
       </tr>
       <tr class="windowsonly" id='property-temp.files.sync.load'>
@@ -1546,7 +1599,7 @@ NameError: mistake
            rectangular.selection.modifier
         </td>
         <td>
-        On GTK+, the modifier key used to make rectangular selections can be set with this
+        On GTK, the modifier key used to make rectangular selections can be set with this
         property. Valid options are 2 (Ctrl), 4 (Alt) or 8 (Super). Super is often assigned to the
         Windows/Start key on Windows keyboards or the Command key on Mac keyboards.
         <br />
@@ -1600,6 +1653,14 @@ NameError: mistake
           Set whether all carets blink. 0 means only the main caret blinks. Default is 1.
         </td>
       </tr>
+      <tr class="windowsonly" id='property-selection.always.visible'>
+        <td>
+          selection.always.visible
+        </td>
+        <td>
+          Set to 1 to show the selection coloured even when SciTE is not the active application. Default is 0.
+        </td>
+      </tr>
       <tr id='property-caret.line.back'>
         <td>
           <a name='property-caret.line.back.alpha'></a>
@@ -1620,6 +1681,14 @@ NameError: mistake
           Sets the rate at which the caret blinks. The value is the time in milliseconds that the
           caret is visible before it is switched to invisible. It then stays invisible for the same
           period before appearing again. A value of 0 stops the caret from blinking.
+        </td>
+      </tr>
+      <tr id='property-caret.style'>
+        <td>
+          caret.style
+        </td>
+        <td>
+          Sets the style of the caret. see <a href="https://www.scintilla.org/ScintillaDoc.html#SCI_SETCARETSTYLE">SCI_SETCARETSTYLE</a> for possible values.
         </td>
       </tr>
       <tr id='property-caret.width'>
@@ -1784,6 +1853,15 @@ NameError: mistake
           change in the background colour of the line with the translucency set with bookmark.alpha.
         </td>
        </tr>
+      <tr id='property-bookmark.symbol'>
+        <td>
+          bookmark.symbol
+        </td>
+        <td>
+          The visual style used to display bookmarks in the margin. Set to a numeric value according to the symbols
+          defined in <a href="http://www.scintilla.org/ScintillaDoc.html#SCI_MARKERDEFINE">SCI_MARKERDEFINE</a>.
+        </td>
+       </tr>
       <tr id='property-find.mark.indicator'>
         <td>
           find.mark.indicator
@@ -1845,7 +1923,7 @@ NameError: mistake
         <td>Defines a path for the Open Selected Filename command in the File
         menu. The path is searched if the selected filename doesn't contain an
         absolute path or the file is not found in the document directory. The
-        directories in openpath are separated by ';' on Windows and ':' on OS X and GTK+.<br />
+        directories in openpath are separated by ';' on Windows and ':' on macOS and GTK.<br />
         An openpath setting may look like:
         <div class="example">
         openpath.*.txt=c:\dos\;f:\;<br />
@@ -2098,6 +2176,14 @@ NameError: mistake
 	<td>asp.default.language</td>
 	<td>Script in ASP code is initially assumed to be in JavaScript. To change this to VBScript set asp.default.language to 2. Python is 3.</td>
 	</tr>
+	<tr id='property-fold.abl.comment.multiline'>
+	<td>fold.abl.comment.multiline</td>
+	<td>Set this property to 0 to disable folding multi-line comments when fold.comment=1.</td>
+	</tr>
+	<tr id='property-fold.abl.syntax.based'>
+	<td>fold.abl.syntax.based</td>
+	<td>Set this property to 0 to disable syntax based folding.</td>
+	</tr>
 	<tr id='property-fold.asm.comment.explicit'>
 	<td>fold.asm.comment.explicit</td>
 	<td>This option enables folding explicit fold points when using the Asm lexer. Explicit fold points allows adding extra folding by placing a ;{ comment at the start and a ;} at the end of a section that should fold.</td>
@@ -2126,6 +2212,22 @@ NameError: mistake
 	<td>fold.at.else</td>
 	<td>This option enables C++ folding on a "} else {" line of an if statement.</td>
 	</tr>
+	<tr id='property-fold.baan.inner.level'>
+	<td>fold.baan.inner.level</td>
+	<td>Set this property to 1 to enable folding of inner levels of select statements.Disabled by default. case and if statements are also eligible</td>
+	</tr>
+	<tr id='property-fold.baan.keywords.based'>
+	<td>fold.baan.keywords.based</td>
+	<td>Set this property to 0 to disable keywords based folding, which is folding based on for, if, on (case), repeat, select, while and fold ends based on endfor, endif, endcase, until, endselect, endwhile respectively.Also folds declarations which are grouped together.</td>
+	</tr>
+	<tr id='property-fold.baan.sections'>
+	<td>fold.baan.sections</td>
+	<td>Set this property to 0 to disable folding of Main Sections as well as Sub Sections.</td>
+	</tr>
+	<tr id='property-fold.baan.syntax.based'>
+	<td>fold.baan.syntax.based</td>
+	<td>Set this property to 0 to disable syntax based folding, which is folding based on '{' & '('.</td>
+	</tr>
 	<tr id='property-fold.basic.comment.explicit'>
 	<td>fold.basic.comment.explicit</td>
 	<td>This option enables folding explicit fold points when using the Basic lexer. Explicit fold points allows adding extra folding by placing a ;{ (BB/PB) or '{ (FB) comment at the start and a ;} (BB/PB) or '} (FB) at the end of a section that should be folded.</td>
@@ -2145,6 +2247,10 @@ NameError: mistake
 	<tr id='property-fold.basic.syntax.based'>
 	<td>fold.basic.syntax.based</td>
 	<td>Set this property to 0 to disable syntax based folding.</td>
+	</tr>
+	<tr id='property-fold.cil.comment.multiline'>
+	<td>fold.cil.comment.multiline</td>
+	<td>Set this property to 0 to disable folding multi-line comments when fold.comment=1.</td>
 	</tr>
 	<tr id='property-fold.comment'>
 	<td>fold.comment</td>
@@ -2202,6 +2308,10 @@ NameError: mistake
 	<td>fold.d.syntax.based</td>
 	<td>Set this property to 0 to disable syntax based folding.</td>
 	</tr>
+	<tr id='property-fold.dataflex.compilerlist'>
+	<td>fold.dataflex.compilerlist</td>
+	<td>Set to 1 for enabling the code folding feature in *.prn files</td>
+	</tr>
 	<tr id='property-fold.haskell.imports'>
 	<td>fold.haskell.imports</td>
 	<td>Set to 1 to enable folding of import declarations</td>
@@ -2246,6 +2356,14 @@ NameError: mistake
 	<td>fold.quotes.python</td>
 	<td>This option enables folding multi-line quoted strings when using the Python lexer.</td>
 	</tr>
+	<tr id='property-fold.raku.comment.multiline'>
+	<td>fold.raku.comment.multiline</td>
+	<td>Set this property to 0 to disable folding multi-line comments when fold.comment=1.</td>
+	</tr>
+	<tr id='property-fold.raku.comment.pod'>
+	<td>fold.raku.comment.pod</td>
+	<td>Set this property to 0 to disable folding POD comments when fold.comment=1.</td>
+	</tr>
 	<tr id='property-fold.rust.comment.explicit'>
 	<td>fold.rust.comment.explicit</td>
 	<td>Set this property to 0 to disable folding explicit fold points when fold.comment=1.</td>
@@ -2278,13 +2396,25 @@ NameError: mistake
 	<td>fold.verilog.flags</td>
 	<td>This option enables folding module definitions. Typically source files contain only one module definition so this option is somewhat useless.</td>
 	</tr>
+	<tr id='property-fold.xml.at.tag.open'>
+	<td>fold.xml.at.tag.open</td>
+	<td>Enable folding for XML at the start of open tag. The default is off.</td>
+	</tr>
 	<tr id='property-html.tags.case.sensitive'>
 	<td>html.tags.case.sensitive</td>
 	<td>For XML and HTML, setting this property to 1 will make tags match in a case sensitive way which is the expected behaviour for XML and XHTML.</td>
 	</tr>
+	<tr id='property-lexer.as.comment.character'>
+	<td>lexer.as.comment.character</td>
+	<td>Overrides the default comment character (which is ';' for asm and '#' for as).</td>
+	</tr>
 	<tr id='property-lexer.asm.comment.delimiter'>
 	<td>lexer.asm.comment.delimiter</td>
 	<td>Character used for COMMENT directive's delimiter, replacing the standard "~".</td>
+	</tr>
+	<tr id='property-lexer.baan.styling.within.preprocessor'>
+	<td>lexer.baan.styling.within.preprocessor</td>
+	<td>For Baan code, determines whether all preprocessor code is styled in the preprocessor style (0, the default) or only from the initial # to the end of the command word(1).</td>
 	</tr>
 	<tr id='property-lexer.cpp.allow.dollars'>
 	<td>lexer.cpp.allow.dollars</td>
@@ -2334,6 +2464,10 @@ NameError: mistake
 	<td>lexer.d.fold.at.else</td>
 	<td>This option enables D folding on a "} else {" line of an if statement.</td>
 	</tr>
+	<tr id='property-lexer.edifact.highlight.un.all'>
+	<td>lexer.edifact.highlight.un.all</td>
+	<td>Set to 0 to highlight only UNA segments, or 1 to highlight all UNx segments.</td>
+	</tr>
 	<tr id='property-lexer.errorlist.escape.sequences'>
 	<td>lexer.errorlist.escape.sequences</td>
 	<td>Set to 1 to interpret escape sequences.</td>
@@ -2382,6 +2516,10 @@ NameError: mistake
 	<td>lexer.json.escape.sequence</td>
 	<td>Set to 1 to enable highlighting of escape sequences in strings</td>
 	</tr>
+	<tr id='property-lexer.nim.raw.strings.highlight.ident'>
+	<td>lexer.nim.raw.strings.highlight.ident</td>
+	<td>Set to 1 to enable highlighting generalized raw string identifiers. Generalized raw string identifiers are anything other than r (or R).</td>
+	</tr>
 	<tr id='property-lexer.props.allow.initial.spaces'>
 	<td>lexer.props.allow.initial.spaces</td>
 	<td>For properties files, set to 0 to style all lines that start with whitespace in the default style. This is not suitable for SciTE .properties files which use indentation for flow control but can be used for RFC2822 text where indentation is used for continuation lines.</td>
@@ -2398,6 +2536,10 @@ NameError: mistake
 	<td>lexer.python.strings.b</td>
 	<td>Set to 0 to not recognise Python 3 bytes literals b"x".</td>
 	</tr>
+	<tr id='property-lexer.python.strings.f'>
+	<td>lexer.python.strings.f</td>
+	<td>Set to 0 to not recognise Python 3.6 f-string literals f"var={var}".</td>
+	</tr>
 	<tr id='property-lexer.python.strings.over.newline'>
 	<td>lexer.python.strings.over.newline</td>
 	<td>Set to 1 to allow strings to span newline characters.</td>
@@ -2405,6 +2547,10 @@ NameError: mistake
 	<tr id='property-lexer.python.strings.u'>
 	<td>lexer.python.strings.u</td>
 	<td>Set to 0 to not recognise Python Unicode literals u"x" as used before Python 3.</td>
+	</tr>
+	<tr id='property-lexer.python.unicode.identifiers'>
+	<td>lexer.python.unicode.identifiers</td>
+	<td>Set to 0 to not recognise Python 3 Unicode identifiers.</td>
 	</tr>
 	<tr id='property-lexer.rust.fold.at.else'>
 	<td>lexer.rust.fold.at.else</td>
@@ -2465,16 +2611,18 @@ NameError: mistake
         This is a '|' delimited list of keys and the commands they produce.
         The commands are either <a href="CommandValues.html">string or numeric IDs</a>.
         Numeric IDs above 2000 are Scintilla commands and are sent to the focussed pane.
-        Named IDs and numeric IDs below 2000 are SciTE menu commands.
-        The modifiers are Ctrl, Shift, Alt, and Super and the named keys are Left,
-        Right, Up, Down, Insert, End, Home, Enter, Space, Tab, KeypadPlus, KeypadMinus,
-        KeypadMultiply, KeypadDivide, Escape, Delete, PageUp, PageDown, Slash,
-        Question, Equal, Win.
+        Named IDs and numeric IDs below 2000 are SciTE menu commands.<br/>
+        The modifiers are Ctrl, Shift, Alt, <span class="gtkonly">Super</span>, and <span class="osxonly">Control</span>.<br/>
+        The named keys are Left, Right, Up, Down, Insert, End, Home, Enter, Space, Tab,
+        KeypadPlus, KeypadMinus, KeypadMultiply, KeypadDivide, <span class="windowsonly">KeypadDecimal</span>,
+        Escape, Delete, PageUp, PageDown,
+        <span class="gtkonly">Slash</span>, <span class="gtkonly">Question</span>, <span class="gtkonly">Equal</span>,
+        Win, Menu.
         <br/>
-        On OS X the command key uses the modifier Ctrl+ as this eases using one setting between platforms and
+        On macOS the command key uses the modifier Ctrl+ as this eases using one setting between platforms and
         the control key uses the modifier Control+.
         <br/>
-        The Super modifier can be used only on GTK+.
+        The Super modifier can be used only on GTK.
         <br/>
         <div class="example">
 user.shortcuts=\<br/>
@@ -2531,6 +2679,16 @@ Prev File|IDM_PREVFILE|<br/>
         If output.initial.hide is 1, then the output pane is hidden when SciTE first
         starts up even when output.*.size is set; otherwise the output pane is shown at
         startup.
+        </td>
+      </tr>
+      <tr class="gtkonly" id='property-split.wide'>
+        <td>
+        split.wide
+        </td>
+        <td>
+          On GTK, the divider between the edit and output pane can be made wider by setting split.wide to 1.
+          This makes it easier to grab with the mouse but uses up room.
+          This property is only read at start up.
         </td>
       </tr>
       <tr id='property-clear.before.execute'>
@@ -2710,7 +2868,7 @@ Prev File|IDM_PREVFILE|<br/>
         <td>
           This is a complex expression used for determining the file types that will be available in
           the save file dialog. The structure of the property is the same as open.filter.<br />
-          Does not work on GTK+.
+          Does not work on GTK.
         </td>
       </tr>
       <tr id='property-star-source.patterns'>
@@ -2781,7 +2939,7 @@ Prev File|IDM_PREVFILE|<br/>
         If you set save.session, the list of currently opened buffers will be saved on exit
         in a session file. When you start SciTE next time (without specifying a file name
         on the command line) the last session will be restored automatically.<br />
-        <b>For GTK+</b>, the file is called ".SciTE.session" and is located in the
+        <b>For GTK</b>, the file is called ".SciTE.session" and is located in the
         directory given by the SciTE_USERHOME environment variable and if that is
         not set, the value of the SciTE_HOME environment variable and if that is not
         set, the value of the HOME environment variable and if that is not
@@ -2821,12 +2979,16 @@ Prev File|IDM_PREVFILE|<br/>
           system default is used.
         </td>
       </tr>
-      <tr class="windowsonly" id='property-find.close.on.find'>
+      <tr id='property-find.close.on.find'>
         <td>
           find.close.on.find
         </td>
         <td>
-          Set to 0 to prevent the Find dialog from closing when "Find" pressed.
+          Set find.close.on.find to 0, 1 or 2 to prevent (0) or allow (1) closing the
+          the find strip automatically when the Find button is pressed.
+          The value 2 causes the strip to close automatically only when the search finds a match
+          which enables the user to change options or search string if a mistake was made.
+          The default value is 1.
         </td>
       </tr>
       <tr id='property-find.replace.matchcase'>
@@ -2862,6 +3024,18 @@ Prev File|IDM_PREVFILE|<br/>
           Change behaviour of Regular expression search.
         If set to 0 (the default), characters '(' and ')' must be escaped by '\' to behave as regexp meta characters.
         If set to 1, these characters are meta characters itself.
+        </td>
+      </tr>
+      <tr id='property-find.replace.regexp.cpp11'>
+        <td>
+        find.replace.regexp.cpp11
+        </td>
+        <td>
+          Change to an alternative regular expression library provided by the C++ compiler
+          that SciTE was built with.
+          This may provide more features than SciTE's own regular expression code.
+        If set to 0 (the default), SciTE's own regular expression code is used.
+        If set to 1, the C++ regular expression library is used.
         </td>
       </tr>
       <tr id='property-find.use.strip'>
@@ -2905,7 +3079,7 @@ Prev File|IDM_PREVFILE|<br/>
          strip.button.height
         </td>
         <td>
-          Buttons on GTK+ often contain extra spacing that makes strips take too much room.
+          Buttons on GTK often contain extra spacing that makes strips take too much room.
 	  This setting tries to limit the height of buttons.
 	  A value of 23 or 24 may work well.
         </td>
@@ -2915,7 +3089,7 @@ Prev File|IDM_PREVFILE|<br/>
          strip.shortcuts.enable
         </td>
         <td>
-          On OS X, default behaviour is to allow use of shortcuts in the Find and Replace strips
+          On macOS, default behaviour is to allow use of shortcuts in the Find and Replace strips
           such as &#x2318;W to turn "Match whole word only" on or off.
           This prevents closing the file with &#x2318;W so shortcuts can be disabled for strips
           by setting this property to 0.
@@ -2937,7 +3111,7 @@ Prev File|IDM_PREVFILE|<br/>
          find.indicator
         </td>
         <td>
-          Controls the animated golden match indicator on OS X.
+          Controls the animated golden match indicator on macOS.
 	The default value, 1, shows and animates the find indicator then fades it away so surrounding text can be seen clearly.
 	Use the value 0 to disable the find indicator and the value 2 to keep the find indicator displayed.
           This setting is not available on OS X 10.6.
@@ -2946,6 +3120,10 @@ Prev File|IDM_PREVFILE|<br/>
       <tr id='property-find.command'>
         <td>
           find.command<br />
+	  find.option.wholeword.0<br />
+	  find.option.wholeword.1<br />
+	  find.option.matchcase.0<br />
+	  find.option.matchcase.1<br />
           <span class="windowsonly">find.input</span>
         </td>
         <td>
@@ -2972,6 +3150,24 @@ c:\cygwin\bin\xargs -0 fgrep -G -n "$(find.what)"
           <br />
           If find.command is empty then SciTE's own search code is used. This only does a
 	simple search without regular expressions and is faster than running an external program.
+	<br />
+	  When defining find.command, to specify the value of the option for the "match case" use
+	  $(find.matchcase), and to specify the value of the option "whole word" use
+	  $(find.wholeword). Additionally, you should define the properties find.option.matchcase.0,
+	  find.option.matchcase.1, find.option.wholeword.0 and find.option.wholeword.1 to
+	  match the expected parameters of the command you use for find.
+	  <br />
+        <div class="example">
+find.option.wholeword.0=<br />
+find.option.wholeword.1=-w<br />
+find.option.matchcase.0=-i<br />
+find.option.matchcase.1=<br />
+<br />
+find.command=cmd /c c:\cygwin\bin\find "$(find.directory)"
+-name "*" -print0 |
+c:\cygwin\bin\xargs -0 grep $(find.wholeword) $(find.matchcase) -G -n "$(find.what)"
+          </div>
+
         </td>
       </tr>
       <tr id='property-find.files'>
@@ -3077,13 +3273,13 @@ c:\cygwin\bin\xargs -0 fgrep -G -n "$(find.what)"
 	  <tr><td>Arabic</td><td align="right">178</td></tr>
 	  <tr class="windowsonly"><td>Thai</td><td align="right">222</td></tr>
 	  <tr class="windowsonly"><td>Vietnamese</td><td align="right">163</td></tr>
-	  <tr class="gtkonly"><td>Cyrillic (CP866 on GTK+)</td><td align="right">866</td></tr>
-	  <tr><td>Cyrillic (CP1251 on Windows, KOI8-R on GTK+)</td><td align="right">204</td></tr>
-	  <tr class="gtkonly"><td>Cyrillic (CP1251 on GTK+)</td><td align="right">1251</td></tr>
+	  <tr class="gtkonly"><td>Cyrillic (CP866 on GTK)</td><td align="right">866</td></tr>
+	  <tr><td>Cyrillic (CP1251 on Windows, KOI8-R on GTK)</td><td align="right">204</td></tr>
+	  <tr class="gtkonly"><td>Cyrillic (CP1251 on GTK)</td><td align="right">1251</td></tr>
 	  <tr class="gtkonly"><td>European with Euro (ISO 8859-15)</td><td align="right">1000</td></tr>
 	  </table>
-        All of these values except for 1251 and 1000 should work on OS X or Windows.
-        On GTK+ Baltic, Turkish, Thai and Vietnamese will probably not work.
+        All of these values except for 1251 and 1000 should work on macOS or Windows.
+        On GTK Baltic, Turkish, Thai and Vietnamese will probably not work.
         </td>
       </tr>
       <tr id='property-ime.interaction'>
@@ -3109,6 +3305,18 @@ c:\cygwin\bin\xargs -0 fgrep -G -n "$(find.what)"
           It defaults to 0, so disabled.
         </td>
       </tr>
+      <tr class="gtkonly" id='property-accessibility'>
+        <td>
+          accessibility
+        </td>
+        <td>
+        On GTK, accessibility of the edit and output panes may be disabled by setting accessibility to 0.
+        Disabling accessibility may moderately improve performance and memory use.
+        This only affects the custom accessibility implementation, not the functionality provided by
+        the system such as speaking the characters typed.
+        It defaults to 1, so enabled.
+        </td>
+      </tr>
       <tr id='property-imports.include'>
         <td>
           <a name='property-imports.exclude'></a>
@@ -3129,7 +3337,7 @@ imports.include=fortran lisp
           abaqus ada asl asm asn1 au3 ave avs baan blitzbasic
           bullant caml cmake cobol coffeescript conf cpp csound css d ecl
           eiffel erlang escript flagship forth fortran freebasic gap haskell
-          hex html inno kix latex lisp lot lout lua matlab metapost
+          hex html inno kix latex lisp lot lout lua matlab maxima metapost
           mmixal modula3 nimrod nncrontab nsis opal oscript others
           pascal perl pov powerpro powershell ps purebasic python r rebol
           registry ruby rust scriptol smalltalk sorcins specman spice sql
@@ -3320,7 +3528,7 @@ imports.include=fortran lisp
           the font, the fore and back have colour subvalues,
           the size field has a (fractional) numeric size subvalue,
           the weight field has a numeric size subvalue (1.. 999: 100=light, 400=normal, 700=bold),
-          the case field has a subvalue of 'm', 'u', or 'l' for mixed, upper or lower case,
+          the case field has a subvalue of 'm', 'u', 'l', or 'c' for miXed, UPPER, lower, or Camel case,
           and the bold, italics and eolfilled fields have no subvalue. The value
           "fore:#FF0000,font:Courier,size:14" represents 14 point, red Courier text.<br />
            A global style can be set up using style.*.<i>stylenumber</i>. Any style options set in
@@ -3402,9 +3610,9 @@ imports.include=fortran lisp
           font.quality
         </td>
         <td>
-        This setting allows choosing different ways of drawing text on Windows and OS X.
+        This setting allows choosing different ways of drawing text on Windows and macOS.
         The appearance will depend on platform settings and, on Windows, the technology setting.
-        This setting does not currently have any effect on GTK+.
+        This setting does not currently have any effect on GTK.
 	  <table>
 	  <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
 	  <tr><td>0</td><td>Default</td></tr>
@@ -3589,7 +3797,7 @@ groupundo - yes or no
         <td>
         Defines a command to be executed when the help command is
         invoked or F1 pressed. On Windows, this often uses subsystem 4 as described above.
-        On OS X or Linux, running man or a browser are common ways of displaying help.
+        On macOS or Linux, running man or a browser are common ways of displaying help.
         The word at the cursor is copied to $(CurrentWord) and this is often a good argument
         to the help application. The subsystem property works in the same way as for other
         commands.
@@ -3790,10 +3998,20 @@ groupundo - yes or no
         </td>
         <td>
         The fold.symbols setting chooses between four ways of showing folding.
-        Set to 0 (the default) for MacOS style arrows to indicate contracted
+        Set to 0 (the default) for macOS style arrows to indicate contracted
         (facing right) and expanded (facing down); 1 to display contracted folds
         with "+" and expanded with "-"; 2 for a flattened tree control with round
         headers and rounded joins; 3 for a flattened tree control with square headers.
+        </td>
+      </tr>
+      <tr id='property-fold.fore'>
+        <td>
+          <a name="property-fold.back"></a>
+          fold.fore<br />
+          fold.back
+        </td>
+        <td>
+        Sets the colours used for folds. fold.fore sets the outline colour, fold.back sets the fill.
         </td>
       </tr>
       <tr id='property-fold.margin.width'>
@@ -3995,7 +4213,7 @@ groupundo - yes or no
           os.x.home.end.keys
         </td>
         <td>
-	Chooses the standard OS X behaviour for the Home and End keys which is
+	Chooses the standard macOS behaviour for the Home and End keys which is
 	to scroll the file to the start or end. This setting takes precedence over
 	vc.home.key.
         </td>
@@ -4049,7 +4267,7 @@ groupundo - yes or no
           fileselector.height
         </td>
         <td>
-          For the GTK+ version determines the initial size of the file
+          For the GTK version determines the initial size of the file
           selector dialog invoked by the Open and Save commands.
           Setting has no effect on Windows.
         </td>
@@ -4059,7 +4277,7 @@ groupundo - yes or no
           fileselector.show.hidden
         </td>
         <td>
-          On OS X setting this to 0 makes the file selector dialog
+          On macOS setting this to 0 makes the file selector dialog
           invoked by the Open command not show hidden files.
         </td>
       </tr>
@@ -4070,7 +4288,7 @@ groupundo - yes or no
         <td>
           Set the name of the localisation file. For a multi-user installation
 	this allows each user to set a preferred user interface language.<br />
-	On OS X, localisation files for some languages are installed in the translations
+	On macOS, localisation files for some languages are installed in the translations
 	subdirectory of the user home directory which allows setting
 	the user interface to, for example, German with
 		<div class="example">
@@ -4100,7 +4318,9 @@ groupundo - yes or no
 		<span class="example">H&amp;ypertext|html|F12|</span><br />
 		Menu items may be commented out by prefixing the name with '#'.
                 The default value for this setting is built up by combining all
-                <a href="#property-star-language">*language</a> settings.
+                <a href="#property-star-language">*language</a> settings.<br />
+		This value is read only once when starting SciTE, so, after changing it,
+		restart SciTE to see the effect.
         </td>
       </tr>
       <tr id='property-star-language'>
@@ -4228,6 +4448,31 @@ groupundo - yes or no
           Enables or disables the evaluation of the directory properties file.
           The default is 0 which disables the evaluation. Any other value enables
 		   this properties file.
+        </td>
+      </tr>
+	  <tr id='property-editor.config.enable'>
+        <td>
+          editor.config.enable
+        </td>
+        <td>
+          Enables or disables the reading and evaluation of .editorconfig files that follow the
+          <a href="http://editorconfig.org/">EditorConfig</a> definition.
+          The default is 0 which disables the evaluation with any other value enabling it.
+        </td>
+      </tr>
+	  <tr id='property-save.path.suggestion'>
+        <td>
+          save.path.suggestion
+        </td>
+        <td>
+          If set, SciTE suggests this name and directory when we perform the "Save" command for a new, unnamed buffer.
+          The directory should exist. (This setting doesn't affect the "Save As" command).
+          A save.path.suggestion setting may be defined as either a relative to $(SciteUserHome) path, like:
+          <div class="example">
+          save.path.suggestion=$(SciteUserHome)\Notes\note_$(TimeStamp).txt<br/>
+          </div>
+          or as a full path. It accepts both directory delimiters: the slash "/" and the backslash "\".<br/>
+          If $(TimeStamp) is specified, it will be replaced by an actual timestamp, 14 characters long.
         </td>
       </tr>
     </table>
@@ -4367,7 +4612,8 @@ groupundo - yes or no
      <tr>
       <td>style</td>
       <td>one of plain, squiggle, tt, diagonal, strike, hidden, box, roundbox, straightbox, fullbox, dash,
-      dots, squigglelow, dotbox, squigglepixmap, compositionthick, or compositionthin.<br />
+      dots, squigglelow, dotbox, squigglepixmap, compositionthick, compositionthin,
+      textfore, gradient, gradientcentre, point, or pointcharacter.<br />
       </td>
       <td>plain</td>
      </tr>

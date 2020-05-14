@@ -17,8 +17,8 @@ class ImportFilter {
 public:
 	std::set<std::string> excludes;
 	std::set<std::string> includes;
-	void SetFilter(std::string sExcludes, std::string sIncludes);
-	bool IsValid(std::string name) const;
+	void SetFilter(const std::string &sExcludes, const std::string &sIncludes);
+	bool IsValid(const std::string &name) const;
 };
 
 class PropSetFile {
@@ -30,35 +30,41 @@ public:
 	PropSetFile *superPS;
 	explicit PropSetFile(bool lowerKeys_=false);
 	PropSetFile(const PropSetFile &copy);
-	virtual ~PropSetFile();
 	PropSetFile &operator=(const PropSetFile &assign);
-	void Set(const char *key, const char *val, ptrdiff_t lenKey=-1, ptrdiff_t lenVal=-1);
-	void Set(const char *keyVal);
-	void Unset(const char *key, int lenKey=-1);
+	virtual ~PropSetFile();
+
+	void Set(std::string_view key, std::string_view val);
+	void SetLine(const char *keyVal);
+	void Unset(std::string_view key);
 	bool Exists(const char *key) const;
 	std::string GetString(const char *key) const;
 	std::string Evaluate(const char *key) const;
 	std::string GetExpandedString(const char *key) const;
 	std::string Expand(const std::string &withVars, int maxExpands=200) const;
 	int GetInt(const char *key, int defaultValue=0) const;
-	void Clear();
+	intptr_t GetInteger(const char *key, intptr_t defaultValue=0) const;
+	long long GetLongLong(const char *key, long long defaultValue=0) const;
+	void Clear() noexcept;
 
 	enum ReadLineState { rlActive, rlExcludedModule, rlConditionFalse };
-	ReadLineState ReadLine(const char *data, ReadLineState rls, FilePath directoryForImports, const ImportFilter &filter, std::vector<FilePath> *imports, size_t depth);
-	void ReadFromMemory(const char *data, size_t len, FilePath directoryForImports, const ImportFilter &filter, std::vector<FilePath> *imports, size_t depth);
-	void Import(FilePath filename, FilePath directoryForImports, const ImportFilter &filter, std::vector<FilePath> *imports, size_t depth);
-	bool Read(FilePath filename, FilePath directoryForImports, const ImportFilter &filter, std::vector<FilePath> *imports, size_t depth);
-	void SetInteger(const char *key, int i);
+	ReadLineState ReadLine(const char *lineBuffer, ReadLineState rls, const FilePath &directoryForImports, const ImportFilter &filter,
+			       FilePathSet *imports, size_t depth);
+	void ReadFromMemory(const char *data, size_t len, const FilePath &directoryForImports, const ImportFilter &filter,
+			    FilePathSet *imports, size_t depth);
+	void Import(const FilePath &filename, const FilePath &directoryForImports, const ImportFilter &filter,
+		    FilePathSet *imports, size_t depth);
+	bool Read(const FilePath &filename, const FilePath &directoryForImports, const ImportFilter &filter,
+		  FilePathSet *imports, size_t depth);
 	std::string GetWild(const char *keybase, const char *filename);
 	std::string GetNewExpandString(const char *keybase, const char *filename = "");
 	bool GetFirst(const char *&key, const char *&val);
 	bool GetNext(const char *&key, const char *&val);
-	static void SetCaseSensitiveFilenames(bool caseSensitiveFilenames_) {
+	static void SetCaseSensitiveFilenames(bool caseSensitiveFilenames_) noexcept {
 		caseSensitiveFilenames = caseSensitiveFilenames_;
 	}
 };
 
-#define PROPERTIES_EXTENSION	".properties"
+constexpr const char *extensionProperties = ".properties";
 bool IsPropertiesFile(const FilePath &filename);
 
 #endif

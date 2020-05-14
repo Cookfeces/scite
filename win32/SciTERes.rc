@@ -75,6 +75,7 @@ BEGIN
 	MENUITEM "Stream Comme&nt\tCtrl+Shift+Q",	IDM_STREAM_COMMENT
 	MENUITEM "Make &Selection Uppercase\tCtrl+Shift+U",	IDM_UPRCASE
 	MENUITEM "Make Selection &Lowercase\tCtrl+U",	IDM_LWRCASE
+	MENUITEM "Reverse Selected Lines",	IDM_LINEREVERSE
 	POPUP "Para&graph"
 	BEGIN
 		MENUITEM "&Join",						IDM_JOIN
@@ -98,6 +99,7 @@ BEGIN
 	MENUITEM "Pre&vious Bookmark\tShift+F2",	IDM_BOOKMARK_PREV
 	MENUITEM "Toggle Bookmar&k\tCtrl+F2",		IDM_BOOKMARK_TOGGLE
 	MENUITEM "&Clear All Bookmarks",			IDM_BOOKMARK_CLEARALL
+	MENUITEM "Select All &Bookmarks",		IDM_BOOKMARK_SELECT_ALL
 END
 
 POPUP "&View"
@@ -473,7 +475,7 @@ BEGIN
 	// ASCII character not equivalent to virtual key code
 	//"*", IDM_EXPAND,  VIRTKEY, CONTROL
 
-	// this works for a german keyboard
+	// this works for a German keyboard
 	187, IDM_EXPAND,  VIRTKEY, CONTROL, SHIFT
 	VK_MULTIPLY, IDM_EXPAND,  VIRTKEY, CONTROL
 /*
@@ -565,6 +567,7 @@ BEGIN
 END
 
 IDR_CLOSEFILE BITMAP "closefile.bmp"
+IDR_CLOSEFILE24 BITMAP "closefile24.bmp"
 
 IDBM_WORD BITMAP "word.bmp"
 IDBM_CASE BITMAP "case.bmp"

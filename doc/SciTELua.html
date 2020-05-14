@@ -36,7 +36,7 @@
       </tr>
     </table>
 <h3>Lua Scripting Extension Notes</h3>
-The SciTE Lua Scripting Extension uses a copy of Lua 5.1 as
+The SciTE Lua Scripting Extension uses a copy of Lua 5.3 as
 its scripting engine.  Currently, all of the standard libraries are
 included, although this list may be trimmed in a future revision.
 <p>
@@ -190,7 +190,7 @@ methods:
 
   findtext(text, [flags], [startPos, [endPos]])
     - returns the start and end of the first match, or nil if no match
-    - flags can be 0 (the default), or a combination of <a href="http://www.scintilla.org/ScintillaDoc.html#searchFlags">SCFIND constants</a>
+    - flags can be 0 (the default), or a combination of <a href="https://www.scintilla.org/ScintillaDoc.html#searchFlags">SCFIND constants</a>
       such as SCFIND_WHOLEWORD, SCFIND_MATCHCASE, and SCFIND_REGEXP
 
   match(text, [flags], [startPos])
@@ -240,10 +240,10 @@ However, if an iface function is declared as get / set but cannot be
 mapped to a Lua property, it is exposed as a Lua function instead.
 </p><p>
 The possible Scintilla calls are listed as the
-<a href="http://www.scintilla.org/PaneAPI.html">Pane API</a> and in
-<a href="http://scite-files.googlecode.com/svn-history/trunk/extras/SciTELua.api">API file format.</a>
+<a href="https://www.scintilla.org/PaneAPI.html">Pane API</a> and in
+<a href="https://github.com/downpoured/scite-files/blob/master/files/api_files_howto_create_api.md">API file format.</a>
 The Scintilla API is described in
-<a href="http://www.scintilla.org/ScintillaDoc.html">ScintillaDoc</a>.
+<a href="https://www.scintilla.org/ScintillaDoc.html">ScintillaDoc</a>.
 </p>
 <p>
 The <tt>scite</tt> namespace includes the following functions:
@@ -293,7 +293,7 @@ as defined in SciTE.h.
 <h4>Scripting user interfaces with strips</h4>
 <p>Simple user interfaces may be defined from Lua as strips similar to
 the find and replace strips. An example looks like<br />
-<img src="http://scintilla.org/UserStrip.png"></img></p>
+<img src="https://scintilla.org/UserStrip.png" /></p>
 
 <p>Strips are shown with StripShow which takes a string describing
 the user interface then builds and displays it as a strip at the
@@ -305,7 +305,7 @@ There can also be a newline to start a new line and a ! to show a close box on
 Windows only.</p>
 <p>A default button looks like ((OK)) and can be triggered by pressing the Enter key.
 Buttons may include accelerator keys prefixed with &amp;.
-On Windows and GTK+ but not OS X, labels may also define accelerator keys
+On Windows and GTK but not OS X, labels may also define accelerator keys
 which cause focus to move to the next element which accepts focus.
 Literal ampersands are defined with &amp;&amp;.
 
@@ -314,9 +314,9 @@ Literal ampersands are defined with &amp;&amp;.
   shows the strip displayed in the picture. The strip can be closed
 by passing an empty string.</p>
 
-<p>On GTK+ a table is used for layout and the approach was copied to the other
+<p>On GTK a table is used for layout and the approach was copied to the other
 platforms. It is not yet as capable on the other platforms yet as on
-GTK+ - columns containing editable text and combo boxes can expand and
+GTK - columns containing editable text and combo boxes can expand and
 other columns are fixed to the their natural width of their widest
 element.</p>
 

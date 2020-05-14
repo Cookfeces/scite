@@ -5,30 +5,26 @@
 // Copyright 1998-2005 by Neil Hodgson <neilh@scintilla.org>
 // The License.txt file describes the conditions under which this software may be distributed.
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cassert>
+#include <cstring>
 
 #include <string>
 #include <vector>
-#include <set>
 #include <map>
+#include <set>
 #include <algorithm>
-
-#include "Scintilla.h"
+#include <chrono>
 
 #include "GUI.h"
 #include "StringList.h"
 #include "StringHelpers.h"
 
-static inline bool IsASpace(unsigned int ch) {
-    return (ch == ' ') || ((ch >= 0x09) && (ch <= 0x0d));
-}
-
-static int CompareNCaseInsensitive(const char *a, const char *b, size_t len) {
+static int CompareNCaseInsensitive(const char *a, const char *b, size_t len) noexcept {
 	while (*a && *b && len) {
 		if (*a != *b) {
-			char upperA = MakeUpperCase(*a);
-			char upperB = MakeUpperCase(*b);
+			const char upperA = MakeUpperCase(*a);
+			const char upperB = MakeUpperCase(*b);
 			if (upperA != upperB)
 				return upperA - upperB;
 		}
@@ -52,10 +48,7 @@ static std::vector<char *> ArrayFromStringList(char *stringList, bool onlyLineEn
 	int words = 0;
 	// For rapid determination of whether a character is a separator, build
 	// a look up table.
-	bool wordSeparator[256];
-	for (int i=0; i<256; i++) {
-		wordSeparator[i] = false;
-	}
+	bool wordSeparator[256] = {};
 	wordSeparator[static_cast<unsigned int>('\r')] = true;
 	wordSeparator[static_cast<unsigned int>('\n')] = true;
 	if (!onlyLineEnds) {
@@ -63,7 +56,7 @@ static std::vector<char *> ArrayFromStringList(char *stringList, bool onlyLineEn
 		wordSeparator[static_cast<unsigned int>('\t')] = true;
 	}
 	for (int j = 0; stringList[j]; j++) {
-		int curr = static_cast<unsigned char>(stringList[j]);
+		const int curr = static_cast<unsigned char>(stringList[j]);
 		if (!wordSeparator[curr] && wordSeparator[prev])
 			words++;
 		prev = curr;
@@ -93,11 +86,11 @@ void StringList::SetFromListText() {
 	wordsNoCase = words;
 }
 
-static bool CmpString(const char *a, const char *b) {
+static bool CmpString(const char *a, const char *b) noexcept {
 	return strcmp(a, b) < 0;
 }
 
-static bool CmpStringNoCase(const char *a, const char *b) {
+static bool CmpStringNoCase(const char *a, const char *b) noexcept {
 	return CompareNoCase(a, b) < 0;
 }
 
@@ -116,7 +109,7 @@ void StringList::SortIfNeeded(bool ignoreCase) {
 	}
 }
 
-void StringList::Clear() {
+void StringList::Clear() noexcept {
 	words.clear();
 	wordsNoCase.clear();
 	listText.clear();
@@ -136,27 +129,28 @@ void StringList::Set(const std::vector<char> &data) {
 }
 
 namespace {
-	
+
 // Functors used to find elements given a prefix
 
 struct CompareString {
 	size_t searchLen;
-	explicit CompareString(size_t searchLen_) : searchLen(searchLen_) {}
-	bool operator()(const char *a, const char *b) const {
+	explicit CompareString(size_t searchLen_) noexcept : searchLen(searchLen_) {}
+	bool operator()(const char *a, const char *b) const noexcept {
 		return strncmp(a, b, searchLen) < 0;
 	}
 };
 
 struct CompareStringInsensitive {
 	size_t searchLen;
-	explicit CompareStringInsensitive(size_t searchLen_) : searchLen(searchLen_) {}
-	bool operator()(const char *a, const char *b) const {
+	explicit CompareStringInsensitive(size_t searchLen_) noexcept : searchLen(searchLen_) {}
+	bool operator()(const char *a, const char *b) const noexcept {
 		return CompareNCaseInsensitive(a, b, searchLen) < 0;
 	}
 };
 
 template<typename Compare>
-	std::string GetMatch(std::vector<char *>::iterator start, std::vector<char *>::iterator end, const char *wordStart, const std::string &wordCharacters, int wordIndex, Compare comp) {
+std::string GetMatch(std::vector<char *>::iterator start, std::vector<char *>::iterator end,
+		     const char *wordStart, const std::string &wordCharacters, int wordIndex, Compare comp) {
 	std::vector<char *>::iterator elem = std::lower_bound(start, end, wordStart, comp);
 	if (!comp(wordStart, *elem) && !comp(*elem, wordStart)) {
 		// Found a matching element, now move forward wordIndex matching elements
@@ -198,8 +192,8 @@ std::string StringList::GetNearestWord(const char *wordStart, size_t searchLen, 
  * there may be extra spaces after the identifier that should not be
  * counted in the length.
  */
-static size_t LengthWord(const char *word, char otherSeparator) {
-	const char *endWord = 0;
+static size_t LengthWord(const char *word, char otherSeparator) noexcept {
+	const char *endWord = nullptr;
 	// Find an otherSeparator
 	if (otherSeparator)
 		endWord = strchr(word, otherSeparator);
@@ -208,6 +202,7 @@ static size_t LengthWord(const char *word, char otherSeparator) {
 		endWord = strchr(word, '(');
 	if (!endWord)
 		endWord = word + strlen(word);
+	assert(endWord);
 	// Last case always succeeds so endWord != 0
 
 	// Drop any space characters.
@@ -250,11 +245,11 @@ static std::string GetMatches(std::vector<char *>::iterator start, std::vector<c
  * them in the ascending order separated with spaces.
  */
 std::string StringList::GetNearestWords(
-    const char *wordStart,
-    size_t searchLen,
-    bool ignoreCase,
-    char otherSeparator /*= '\0'*/,
-    bool exactLen /*=false*/) {
+	const char *wordStart,
+	size_t searchLen,
+	bool ignoreCase,
+	char otherSeparator /*= '\0'*/,
+	bool exactLen /*=false*/) {
 
 	if (words.empty())
 		return std::string();
